@@ -26,23 +26,32 @@ function Login() {
 
   const handleChange = (e) => {
     setData({ ...data, [e.target.name]: e.target.value });
-    setError(""); // Clear error when user types
+    setError("");
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
+  e.preventDefault();
+  setIsLoading(true);
+  setError("");
 
-    const result = await dispatch(loginThunk(data));
+  const resultAction = await dispatch(loginThunk(data));
 
-    if (result.type === "auth/login/fulfilled") {
+  if (loginThunk.fulfilled.match(resultAction)) {
+    const user = resultAction.payload.user;
+
+    if (user.user_type === "school") {
       navigate("/Schooldashboard");
-    } else {
-      setError("Invalid email or password. Please try again.");
-      setIsLoading(false);
+    } 
+    else if (user.user_type === "teacher") {
+      navigate("/teacher/dashboard");
     }
-  };
+
+  } else {
+    setError("Invalid email or password. Please try again.");
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center p-4">

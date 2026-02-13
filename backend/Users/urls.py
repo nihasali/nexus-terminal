@@ -5,7 +5,8 @@ from .views import (
     LoginView,
     SchoolLogout,
     CurrentUserView,
-    RefreshTokenView
+    RefreshTokenView,
+
 )
 
 urlpatterns = [

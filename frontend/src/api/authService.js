@@ -41,3 +41,27 @@ export const updateTeacher = (id,data)=>{
 
 
 // ---------------------------------------------------------------------------------------------------------------------------
+
+// -----------------------------------------------Teacher api-----------------------------------------------------------------
+
+export const completeTeacherProfile=(formData)=>{
+  return api.patch("Profile/teacher/complete-profile/",formData,{
+    headers:{
+      'Content-Type':'multipart/form-data'
+    }
+  });
+};
+
+export const getTeacherProfile=()=>{
+  return api.get("Profile/teacher/profile/")
+}
+
+export const updateTeacherProfile = (formData) => {
+  return api.patch("Profile/teacher/edit-profile/", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data"
+    }
+  });
+};
+
+// ----------------------------------------------------------------------------------------------------------------------------

@@ -5,6 +5,7 @@ from rest_framework import status
 
 from .serializers import SchoolSignupOTPSerializer, VerifyOTPSerializer,LoginSerializer
 from .models import OTPVerification, User,School
+from Profile.models import TeacherProfile
 from .utils import send_otp_email
 
 from django.contrib.auth import authenticate
@@ -15,6 +16,8 @@ from .authentication import CookieJWTAuthentication
 
 from django.utils.text import slugify
 import uuid
+
+from .permissions import IsTeacher,IsSchool
 
 class SchoolSignupRequestView(APIView):
     def post(self,request):
@@ -107,7 +110,7 @@ class LoginView(APIView):
 
             user = authenticate(email=email,password=password)
 
-            if user is not None and user.user_type=='school':
+            if user is not None:
                 refresh = RefreshToken.for_user(user)
                 access_token = refresh.access_token
 
@@ -131,7 +134,8 @@ class LoginView(APIView):
                     'user':{
                         'email':user.email,
                         'fullname':user.fullname,
-                        'user_type':user.user_type
+                        'user_type':user.user_type,
+                        'is_setup_complete':user.is_setup_complete,
                     }
                 }
 
@@ -166,7 +170,8 @@ class CurrentUserView(APIView):
         return Response({
             'email':user.email,
             'fullname':user.fullname,
-            'user_type':user.user_type
+            'user_type':user.user_type,
+            "is_setup_complete": request.user.is_setup_complete,
         })
 
 

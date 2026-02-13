@@ -44,12 +44,12 @@ function Sidebar() {
     {
       title: "Teachers Management",
       icon: <Users size={18} />,
-      path: "/create-teacher",
+      path: "/school-teacherlist",
     },
     {
       title: "Student Management",
       icon: <GraduationCap size={18} />,
-      path: "/school-teacherlist",
+      path: "",
     },
     {
       title: "Parents Management",

@@ -28,57 +28,56 @@ export const loadUserThunk = createAsyncThunk(
   }
 );
 
-const authSlice=createSlice({
-    name:'auth',
-    initialState:{
-        user:null,
-        isAuthenticated:false,
-        error:null,
-        loading:true,
+const authSlice = createSlice({
+  name: 'auth',
+  initialState: {
+    user: null,
+    isAuthenticated: false,
+    error: null,
+    loading: true,
+  },
+  reducers: {
+    logout: (state) => {
+      state.user = null;
+      state.isAuthenticated = false;
     },
-    reducers:{
-        logout:(state)=>{
-            state.user=null;
-            state.isAuthenticated=false;
-        },
-    },
-    extraReducers:(builder)=>{
-        builder.addCase(loginThunk.fulfilled,(state,action)=>{
-            state.isAuthenticated=true;
-            state.user=action.payload.user;
-            state.error=null;
-            state.loading = false;
-        });
+    markProfileComplete: (state) => {
+    if (state.user) {
+      state.user.is_setup_complete = true;
+    }
+}
+  },
+  extraReducers: (builder) => {
 
-        builder.addCase(loginThunk.rejected,(state,action)=>{
-            state.error = action.payload.error;
-            state.loading = false;
-        });
-
-        builder.addCase(loadUserThunk.fulfilled, (state, action) => {
-            state.isAuthenticated = true;
-
-            
-            state.user = {
-                email: action.payload.email,
-                fullname: action.payload.fullname,
-                user_type: action.payload.user_type
-            };
-
-                state.loading = false;
+    builder.addCase(loginThunk.fulfilled, (state, action) => {
+      state.isAuthenticated = true;
+      state.user = action.payload.user;
+      state.error = null;
+      state.loading = false;
     });
 
-        builder.addCase(loadUserThunk.rejected, (state) => {
-        state.isAuthenticated = false;
-        state.user = null;
-        state.loading = false;
-        });
+    builder.addCase(loginThunk.rejected, (state, action) => {
+      state.error = action.payload?.error || "Login failed";
+      state.loading = false;
+    });
 
-    },
+    builder.addCase(loadUserThunk.fulfilled, (state, action) => {
+      state.isAuthenticated = true;
+      state.user = action.payload;
+      state.loading = false;
+    });
 
+    builder.addCase(loadUserThunk.rejected, (state) => {
+      state.isAuthenticated = false;
+      state.user = null;
+      state.loading = false;
+    });
+
+  },
 });
 
 
 
-export const {logout}=authSlice.actions;
+
+export const {logout,markProfileComplete}=authSlice.actions;
 export default authSlice.reducer;

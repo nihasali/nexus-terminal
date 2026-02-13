@@ -63,6 +63,7 @@ class TeacherListSerializer(serializers.ModelSerializer):
     fullname = serializers.CharField(source="user.fullname")
     email = serializers.CharField(source="user.email")
     phone = serializers.CharField(source="user.phone")
+    profile_picture = serializers.ImageField(source='user.profile_picture')
     is_setup_complete = serializers.BooleanField(source="user.is_setup_complete")
 
     class Meta:
@@ -78,6 +79,7 @@ class TeacherListSerializer(serializers.ModelSerializer):
             'salary',
             "qualification",
             "years_of_experience",
+            'profile_picture',
             'is_setup_complete',
         ]
 
@@ -85,6 +87,7 @@ class TeacherDetailSerializer(serializers.ModelSerializer):
     fullname = serializers.CharField(source='user.fullname')
     email = serializers.CharField(source='user.email')
     phone = serializers.CharField(source='user.phone')
+    profile_picture = serializers.ImageField(source='user.profile_picture')
     is_setup_complete = serializers.BooleanField(source='user.is_setup_complete')
 
     class Meta:
@@ -100,6 +103,7 @@ class TeacherDetailSerializer(serializers.ModelSerializer):
             'salary',
             'qualification',
             'years_of_experience',
+            'profile_picture',
             'is_setup_complete',
         ]
 
@@ -149,3 +153,49 @@ class UpdateTeacherSerializer(serializers.Serializer):
             raise serializers.ValidationError("Salary must be greater than zero")
         return value
 
+class TeacherProfileCompletionSerializer(serializers.Serializer):
+    phone = serializers.CharField(required=True)
+    gender = serializers.ChoiceField(
+        choices=[
+            ('male','Male'),
+            ('female','Female'),
+            ('other','Other')
+        ],
+        required=True
+    )
+
+    DOB=serializers.DateField(required=True)
+
+    qualification = serializers.CharField(required=True)
+    years_of_experience = serializers.IntegerField(
+        required=True,
+        min_value=0,
+        max_value=50
+    )
+
+    profile_picture = serializers.ImageField(required=False)
+
+
+
+class TeacherProfileEditSerializer(serializers.Serializer):
+
+    # User fields
+    phone = serializers.CharField(required=False)
+    gender = serializers.ChoiceField(
+        choices=[
+            ("male", "Male"),
+            ("female", "Female"),
+            ("other", "Other"),
+        ],
+        required=False
+    )
+    DOB = serializers.DateField(required=False)
+    profile_picture = serializers.ImageField(required=False)
+
+    # TeacherProfile fields
+    qualification = serializers.CharField(required=False)
+    years_of_experience = serializers.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=60
+    )
