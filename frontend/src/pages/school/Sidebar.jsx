@@ -49,7 +49,7 @@ function Sidebar() {
     {
       title: "Student Management",
       icon: <GraduationCap size={18} />,
-      path: "",
+      path: "/school-students/list/",
     },
     {
       title: "Parents Management",

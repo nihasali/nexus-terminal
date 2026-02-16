@@ -4,7 +4,8 @@ from django.utils.encoding import force_bytes
 from django.core.mail import send_mail
 from django.conf import settings
 import uuid
-from .models import PasswordSetupToken
+from .models import PasswordSetupToken,StudentProfile
+from datetime import datetime
 
 
 def generate_setup_token(user):
@@ -28,7 +29,7 @@ def send_set_password_email(user):
     message = f"""
     Hello {user.fullname},
 
-    Your teacher account has been created.
+    Your {user.user_type} account has been created.
 
     Please click the link below to set your password:
 
@@ -48,3 +49,12 @@ def send_set_password_email(user):
 
 
 
+def generate_admission_number(school):
+    current_year = datetime.now().year
+
+    student_count = StudentProfile.objects.filter(
+        user__school=school,
+        created_at__year=current_year
+    ).count() + 1
+
+    return f'{school.tenant_id}-{current_year}-{str(student_count).zfill(4)}'

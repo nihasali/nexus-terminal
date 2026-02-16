@@ -1,5 +1,6 @@
 from django.db import models
-from Users.models import User
+from Users.models import User,School
+from cloudinary.models import CloudinaryField
 
 class TeacherProfile(models.Model):
     user = models.OneToOneField(
@@ -27,3 +28,51 @@ class PasswordSetupToken(models.Model):
     def __str__(self):
         return self.user.email
 
+
+
+class StudentProfile(models.Model):
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="student_profile"
+    )
+
+    admission_number = models.CharField(
+        max_length=50,
+        unique=True
+    )
+
+    roll_number = models.CharField(max_length=50)
+
+    date_of_joining = models.DateField()
+
+    blood_group = models.CharField(
+        max_length=15,
+        blank=True,
+        null=True
+    )
+
+    guardian_name = models.CharField(max_length=255)
+
+    guardian_phone = models.CharField(max_length=20)
+
+    address = models.CharField(max_length=255,blank=True, null=True)
+
+    student_contact = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True
+    )
+
+    id_proof = CloudinaryField(
+        'student_id_proof',
+        blank=True,
+        null=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.fullname} - {self.admission_number}"

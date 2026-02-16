@@ -1,10 +1,12 @@
 from django.shortcuts import render
-from .serializers import CreateTeacherSerializer,SetPasswordSerializer,TeacherListSerializer,TeacherDetailSerializer,UpdateTeacherSerializer,TeacherProfileCompletionSerializer,TeacherProfileEditSerializer
-from .models import TeacherProfile,PasswordSetupToken
+from .serializers import (CreateTeacherSerializer,SetPasswordSerializer,TeacherListSerializer,TeacherDetailSerializer,
+UpdateTeacherSerializer,TeacherProfileCompletionSerializer,TeacherProfileEditSerializer,
+StudentListSerializer,CreateStudentSerializer,StudentDetailSerializer,UpdateStudentSerializer)
+from .models import TeacherProfile,PasswordSetupToken,StudentProfile
 from Users.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .utils import send_set_password_email
+from .utils import send_set_password_email,generate_admission_number
 
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.tokens import default_token_generator
@@ -13,6 +15,8 @@ from rest_framework.permissions import IsAuthenticated
 from Users.authentication import CookieJWTAuthentication
 from rest_framework.parsers import MultiPartParser, FormParser
 from Users.permissions import IsSchool,IsTeacher
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 
 class CreateTeacherView(APIView):
     
@@ -312,8 +316,7 @@ class TeacherEditProfileView(APIView):
             data = serializer.validated_data
             user = request.user
             profile = TeacherProfile.objects.get(user=user)
-
-            # Update User fields
+        
             if "phone" in data:
                 user.phone = data["phone"]
 
@@ -328,7 +331,6 @@ class TeacherEditProfileView(APIView):
 
             user.save()
 
-            # Update TeacherProfile fields
             if "qualification" in data:
                 profile.qualification = data["qualification"]
 
@@ -340,3 +342,140 @@ class TeacherEditProfileView(APIView):
             return Response({"message": "Profile updated successfully"})
 
         return Response(serializer.errors, status=400)
+
+
+
+class CreateStudentView(APIView):
+    authentication_classes=[CookieJWTAuthentication]
+    permission_classes=[IsSchool]
+    parser_classes=(MultiPartParser,FormParser)
+
+    def post(self,request):
+
+        serializer=CreateStudentSerializer(data=request.data)
+
+        if serializer.is_valid():
+
+            data = serializer.validated_data
+
+            school = request.user.school
+
+            admission_number = generate_admission_number(school)
+
+            with transaction.atomic():
+
+                user=User.objects.create(
+                    fullname=data['fullname'],
+                    email=data['email'],
+                    phone=data.get('phone'),
+                    gender=data['gender'],
+                    DOB=data['DOB'],
+                    user_type='student',
+                    school=school,
+                    is_setup_complete=False
+
+                )
+
+                user.set_unusable_password()
+                user.save()
+
+                StudentProfile.objects.create(
+                    user=user,
+                    admission_number=admission_number,
+                    roll_number=data["roll_number"],
+                    date_of_joining=data["date_of_joining"],
+                    blood_group=data.get("blood_group"),
+                    guardian_name=data["guardian_name"],
+                    guardian_phone=data["guardian_phone"],
+                    address=data.get("address"),
+                    student_contact=data.get("student_contact"),
+                    id_proof=data.get("id_proof")
+                )
+
+            send_set_password_email(user)
+
+            return Response({
+                "message": "Student created successfully",
+                "admission_number": admission_number
+            })
+
+        return Response(serializer.errors, status=400)
+
+
+
+class StudentListView(APIView):
+    authentication_classes=[CookieJWTAuthentication]
+    permission_classes=[IsSchool]
+
+    def get(self,request):
+        school=request.user.school
+
+        students = StudentProfile.objects.filter(
+            user__school=school
+        ).select_related('user').order_by('-created_at')
+
+        serializer=StudentListSerializer(students,many=True)
+
+        return Response(serializer.data)
+
+
+
+class StudentDetailView(APIView):
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsSchool]
+
+    def get(self, request, pk):
+
+        school = request.user.school
+
+        student = get_object_or_404(
+            StudentProfile.objects.select_related("user"),
+            pk=pk,
+            user__school=school
+        )
+
+        serializer = StudentDetailSerializer(student)
+
+        return Response(serializer.data)
+
+
+class StudentEditView(APIView):
+    authentication_classes=[CookieJWTAuthentication]
+    permission_classes=[IsSchool]
+    parser_classes=(MultiPartParser,FormParser)
+
+    def get(self,request,pk):
+        school = request.user.school
+
+        student = get_object_or_404(
+            StudentProfile.objects.select_related('user'),
+            pk=pk,
+            user__school=school
+        )
+        serializer = UpdateTeacherSerializer(student)
+
+        return Response(serializer.data)
+
+    
+    def patch(self,request,pk):
+
+        school = request.user.school
+
+        student = get_object_or_404(
+            StudentProfile.objects.select_related('user'),
+            pk=pk,
+            user__school=school
+        )
+
+        serializer = UpdateTeacherSerializer(
+            student,
+            data = request.data,
+            partial = True
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message':'Student updated successfully'})
+
+        return Response(serializer.errors,status=400)

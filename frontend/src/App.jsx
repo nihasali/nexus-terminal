@@ -20,7 +20,10 @@ import TeacherProfileComplete from "./pages/teacher/TeacherProfileComplete";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import TeacherProfile from './pages/teacher/TeacherProfile';
 import TeacherEditProfile from './pages/teacher/TeacherEditProfile';
-
+import StudentList from './pages/school/StudentList';
+import StudentDetail from './pages/school/StudentDetail';
+import CreateStudent from './pages/school/StudentCreate';
+import StudentEdit from './pages/school/StudentEdit';
 
 function App() {
   const dispatch = useDispatch();
@@ -59,6 +62,12 @@ function App() {
         <Route path='/school-teacherlist' element={<SchoolRoute> <TeacherList/> </SchoolRoute>} ></Route>
         <Route path='/school-teacher-details/:id' element={<SchoolRoute> <TeacherDetail/> </SchoolRoute>} ></Route>
         <Route path='/school-teacher/edit/:id' element={<SchoolRoute> <TeacherEdit/> </SchoolRoute>} ></Route>
+        <Route path="/school-students/list/" element={<SchoolRoute><StudentList /></SchoolRoute>} />
+        <Route path="/school-student-details/:id" element={<SchoolRoute><StudentDetail /></SchoolRoute>} />
+        <Route path="/school-student-edit/:id" element={<SchoolRoute><StudentEdit /></SchoolRoute>} />
+        <Route path="/school-student-create/" element={<SchoolRoute><CreateStudent /></SchoolRoute>} />
+
+
 
         
 

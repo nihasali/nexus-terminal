@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from Users.models import User
-from .models import TeacherProfile
+from .models import TeacherProfile,StudentProfile
 from django.core.validators import MinValueValidator
 
 
@@ -199,3 +199,143 @@ class TeacherProfileEditSerializer(serializers.Serializer):
         min_value=0,
         max_value=60
     )
+
+
+class CreateStudentSerializer(serializers.Serializer):
+
+    fullname = serializers.CharField(max_length=255)
+    email = serializers.EmailField()
+    phone = serializers.CharField(required=False)
+    gender = serializers.ChoiceField(
+        choices=[
+            ("male", "Male"),
+            ("female", "Female"),
+            ("other", "Other"),
+        ],
+        required=True
+    )
+    DOB = serializers.DateField(required=True)
+
+    roll_number = serializers.CharField(max_length=50)
+    date_of_joining = serializers.DateField()
+    blood_group = serializers.CharField(required=False)
+    guardian_name = serializers.CharField(max_length=255)
+    guardian_phone = serializers.CharField(max_length=20)
+
+    address = serializers.CharField(required=False)
+    student_contact = serializers.CharField(required=False)
+    id_proof = serializers.ImageField(required=False)
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError(
+                "A user with this email already exists"
+            )
+        return value
+
+
+
+class StudentListSerializer(serializers.ModelSerializer):
+
+    fullname = serializers.CharField(source="user.fullname")
+    email = serializers.CharField(source="user.email")
+    phone = serializers.CharField(source="user.phone")
+    gender = serializers.CharField(source="user.gender")
+    DOB = serializers.DateField(source="user.DOB")
+
+    class Meta:
+        model = StudentProfile
+        fields = [
+            "id",
+            "admission_number",
+            "roll_number",
+            "date_of_joining",
+            "blood_group",
+            "guardian_name",
+            "guardian_phone",
+            "fullname",
+            "email",
+            "phone",
+            "gender",
+            "DOB",
+        ]
+
+
+class StudentDetailSerializer(serializers.ModelSerializer):
+
+    fullname = serializers.CharField(source="user.fullname")
+    email = serializers.CharField(source="user.email")
+    phone = serializers.CharField(source="user.phone")
+    gender = serializers.CharField(source="user.gender")
+    DOB = serializers.DateField(source="user.DOB")
+    profile_picture = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StudentProfile
+        fields = [
+            "id",
+            "admission_number",
+            "roll_number",
+            "date_of_joining",
+            "blood_group",
+            "guardian_name",
+            "guardian_phone",
+            "address",
+            "student_contact",
+            "id_proof",
+            "fullname",
+            "email",
+            "phone",
+            "gender",
+            "DOB",
+            "profile_picture",
+        ]
+
+    def get_profile_picture(self, obj):
+        if obj.user.profile_picture:
+            return obj.user.profile_picture.url
+        return None
+
+
+class UpdateStudentSerializer(serializers.ModelSerializer):
+
+    # User fields
+    fullname = serializers.CharField(source="user.fullname", required=False)
+    phone = serializers.CharField(source="user.phone", required=False)
+    gender = serializers.CharField(source="user.gender", required=False)
+    DOB = serializers.DateField(source="user.DOB", required=False)
+
+    class Meta:
+        model = StudentProfile
+        fields = [
+            "fullname",
+            "phone",
+            "gender",
+            "DOB",
+            "roll_number",
+            "date_of_joining",
+            "blood_group",
+            "guardian_name",
+            "guardian_phone",
+            "address",
+            "student_contact",
+            "id_proof",
+        ]
+
+    def update(self, instance, validated_data):
+
+        user_data = validated_data.pop("user", {})
+
+        # Update User fields
+        for attr, value in user_data.items():
+            setattr(instance.user, attr, value)
+
+        instance.user.save()
+
+        # Update StudentProfile fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+
+        return instance
