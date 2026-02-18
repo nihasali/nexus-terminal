@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from Users.models import User
-from .models import TeacherProfile,StudentProfile
+from .models import TeacherProfile,StudentProfile,StudentDocument
 from django.core.validators import MinValueValidator
 
 
@@ -224,7 +224,10 @@ class CreateStudentSerializer(serializers.Serializer):
 
     address = serializers.CharField(required=False)
     student_contact = serializers.CharField(required=False)
-    id_proof = serializers.ImageField(required=False)
+    documents = serializers.ListField(
+        child=serializers.FileField(),
+        required=False
+    )
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -260,6 +263,18 @@ class StudentListSerializer(serializers.ModelSerializer):
             "DOB",
         ]
 
+class StudentDocumentSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()  # ← add this
+
+    class Meta:
+        model = StudentDocument
+        fields = ["id", "file", "document_type"]
+
+    def get_file(self, obj):
+        if obj.file:
+            return obj.file.url  # ← returns the full Cloudinary URL
+        return None
+
 
 class StudentDetailSerializer(serializers.ModelSerializer):
 
@@ -269,6 +284,8 @@ class StudentDetailSerializer(serializers.ModelSerializer):
     gender = serializers.CharField(source="user.gender")
     DOB = serializers.DateField(source="user.DOB")
     profile_picture = serializers.SerializerMethodField()
+    document = StudentDocumentSerializer(many=True, read_only=True)
+
 
     class Meta:
         model = StudentProfile
@@ -282,12 +299,12 @@ class StudentDetailSerializer(serializers.ModelSerializer):
             "guardian_phone",
             "address",
             "student_contact",
-            "id_proof",
             "fullname",
             "email",
             "phone",
             "gender",
             "DOB",
+            'document',
             "profile_picture",
         ]
 
@@ -304,6 +321,7 @@ class UpdateStudentSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(source="user.phone", required=False)
     gender = serializers.CharField(source="user.gender", required=False)
     DOB = serializers.DateField(source="user.DOB", required=False)
+    document = StudentDocumentSerializer(many=True, read_only=True)
 
     class Meta:
         model = StudentProfile
@@ -319,7 +337,7 @@ class UpdateStudentSerializer(serializers.ModelSerializer):
             "guardian_phone",
             "address",
             "student_contact",
-            "id_proof",
+            'document'
         ]
 
     def update(self, instance, validated_data):

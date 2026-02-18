@@ -65,14 +65,21 @@ class StudentProfile(models.Model):
         null=True
     )
 
-    id_proof = CloudinaryField(
-        'student_id_proof',
-        blank=True,
-        null=True
-    )
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.user.fullname} - {self.admission_number}"
+
+
+class StudentDocument(models.Model):
+    student = models.ForeignKey(StudentProfile,on_delete=models.CASCADE,related_name='document')
+
+    document_type=models.CharField(max_length=100,blank=True,null=True)
+
+    file = CloudinaryField('student_document')
+
+    updated_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.student.user.fullname}-{self.document_type}'

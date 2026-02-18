@@ -2,7 +2,7 @@ from django.shortcuts import render
 from .serializers import (CreateTeacherSerializer,SetPasswordSerializer,TeacherListSerializer,TeacherDetailSerializer,
 UpdateTeacherSerializer,TeacherProfileCompletionSerializer,TeacherProfileEditSerializer,
 StudentListSerializer,CreateStudentSerializer,StudentDetailSerializer,UpdateStudentSerializer)
-from .models import TeacherProfile,PasswordSetupToken,StudentProfile
+from .models import TeacherProfile,PasswordSetupToken,StudentProfile,StudentDocument
 from Users.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -379,7 +379,7 @@ class CreateStudentView(APIView):
                 user.set_unusable_password()
                 user.save()
 
-                StudentProfile.objects.create(
+                student=StudentProfile.objects.create(
                     user=user,
                     admission_number=admission_number,
                     roll_number=data["roll_number"],
@@ -389,8 +389,18 @@ class CreateStudentView(APIView):
                     guardian_phone=data["guardian_phone"],
                     address=data.get("address"),
                     student_contact=data.get("student_contact"),
-                    id_proof=data.get("id_proof")
                 )
+
+                student.save()
+
+                documents = request.FILES.getlist('documents')
+
+                for doc in documents:
+                    StudentDocument.objects.create(
+                        student=student,
+                        file=doc,
+                        document_type='id_proof'
+                    )
 
             send_set_password_email(user)
 
@@ -453,7 +463,7 @@ class StudentEditView(APIView):
             pk=pk,
             user__school=school
         )
-        serializer = UpdateTeacherSerializer(student)
+        serializer = UpdateStudentSerializer(student)
 
         return Response(serializer.data)
 
@@ -468,7 +478,7 @@ class StudentEditView(APIView):
             user__school=school
         )
 
-        serializer = UpdateTeacherSerializer(
+        serializer = UpdateStudentSerializer(
             student,
             data = request.data,
             partial = True
