@@ -45,6 +45,9 @@ function Login() {
     else if (user.user_type === "teacher") {
       navigate("/teacher/dashboard");
     }
+    else if (user.user_type === "student") {
+      navigate("/student/dashboard");
+    }
 
   } else {
     setError("Invalid email or password. Please try again.");

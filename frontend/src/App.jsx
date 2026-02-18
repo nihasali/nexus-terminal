@@ -24,6 +24,8 @@ import StudentList from './pages/school/StudentList';
 import StudentDetail from './pages/school/StudentDetail';
 import CreateStudent from './pages/school/StudentCreate';
 import StudentEdit from './pages/school/StudentEdit';
+import StudentDashboard from './pages/student/StudentDashboard';
+import StudentRoute from './components/StudentRoute';
 
 function App() {
   const dispatch = useDispatch();
@@ -79,7 +81,11 @@ function App() {
         <Route path="/teacher/edit-profile" element={ <TeacherRoute> <TeacherEditProfile /></TeacherRoute>}/>
 
 
+        {/* --------------------------------------------------student private root-------------------------------------------------------------------- */}
         
+        <Route path='/student/dashboard' element={<StudentRoute><StudentDashboard/></StudentRoute>}/>
+
+
       </Routes>
     </BrowserRouter>
   )

@@ -16,6 +16,7 @@ function StudentDetail() {
     setLoading(true);
     try {
       const res = await api.get(`Profile/school-students/details/${id}/`);
+      console.log("documents:", res.data.documents);
       setStudent(res.data);
       setLoading(false);
     } catch (error) {
@@ -59,8 +60,8 @@ function StudentDetail() {
         <div className="border-b border-gray-200 bg-white">
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
-              <Link 
-                to="/school-students/list/" 
+              <Link
+                to="/school-students/list/"
                 className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,9 +148,8 @@ function StudentDetail() {
               <h3 className="text-base font-bold text-gray-900 mb-6 uppercase tracking-wide">
                 Personal Information
               </h3>
-              
+
               <div className="space-y-6">
-                {/* Full Name */}
                 <div className="flex items-start">
                   <div className="flex-shrink-0 mr-4">
                     <div className="w-10 h-10 flex items-center justify-center">
@@ -164,7 +164,6 @@ function StudentDetail() {
                   </div>
                 </div>
 
-                {/* Email */}
                 <div className="flex items-start">
                   <div className="flex-shrink-0 mr-4">
                     <div className="w-10 h-10 flex items-center justify-center">
@@ -179,8 +178,7 @@ function StudentDetail() {
                   </div>
                 </div>
 
-                {/* Date of Birth */}
-                {student.date_of_birth && (
+                {student.DOB && (
                   <div className="flex items-start">
                     <div className="flex-shrink-0 mr-4">
                       <div className="w-10 h-10 flex items-center justify-center">
@@ -192,17 +190,16 @@ function StudentDetail() {
                     <div className="flex-1">
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Date of Birth</p>
                       <p className="text-base font-semibold text-gray-900">
-                        {new Date(student.date_of_birth).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
+                        {new Date(student.DOB).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
                         })}
                       </p>
                     </div>
                   </div>
                 )}
 
-                {/* Address */}
                 {student.address && (
                   <div className="flex items-start">
                     <div className="flex-shrink-0 mr-4">
@@ -219,6 +216,22 @@ function StudentDetail() {
                     </div>
                   </div>
                 )}
+
+                {student.phone && (
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 mr-4">
+                      <div className="w-10 h-10 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Phone</p>
+                      <p className="text-base font-semibold text-gray-900">{student.phone}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -227,9 +240,8 @@ function StudentDetail() {
               <h3 className="text-base font-bold text-gray-900 mb-6 uppercase tracking-wide">
                 Academic Details
               </h3>
-              
+
               <div className="space-y-6">
-                {/* Admission Number */}
                 <div className="flex items-start">
                   <div className="flex-shrink-0 mr-4">
                     <div className="w-10 h-10 flex items-center justify-center">
@@ -244,7 +256,6 @@ function StudentDetail() {
                   </div>
                 </div>
 
-                {/* Roll Number */}
                 <div className="flex items-start">
                   <div className="flex-shrink-0 mr-4">
                     <div className="w-10 h-10 flex items-center justify-center">
@@ -259,7 +270,44 @@ function StudentDetail() {
                   </div>
                 </div>
 
-                {/* Class */}
+                {student.date_of_joining && (
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 mr-4">
+                      <div className="w-10 h-10 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Date of Joining</p>
+                      <p className="text-base font-semibold text-gray-900">
+                        {new Date(student.date_of_joining).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {student.blood_group && (
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 mr-4">
+                      <div className="w-10 h-10 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Blood Group</p>
+                      <p className="text-base font-semibold text-gray-900">{student.blood_group}</p>
+                    </div>
+                  </div>
+                )}
+
                 {student.class_name && (
                   <div className="flex items-start">
                     <div className="flex-shrink-0 mr-4">
@@ -286,9 +334,8 @@ function StudentDetail() {
             <h3 className="text-base font-bold text-gray-900 mb-6 uppercase tracking-wide">
               Guardian Information
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Guardian Name */}
               <div className="flex items-start">
                 <div className="flex-shrink-0 mr-4">
                   <div className="w-10 h-10 flex items-center justify-center">
@@ -303,7 +350,6 @@ function StudentDetail() {
                 </div>
               </div>
 
-              {/* Guardian Phone */}
               <div className="flex items-start">
                 <div className="flex-shrink-0 mr-4">
                   <div className="w-10 h-10 flex items-center justify-center">
@@ -317,21 +363,85 @@ function StudentDetail() {
                   <p className="text-base font-semibold text-gray-900">{student.guardian_phone || "Not provided"}</p>
                 </div>
               </div>
+
+              {student.student_contact && (
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 mr-4">
+                    <div className="w-10 h-10 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Student Contact</p>
+                    <p className="text-base font-semibold text-gray-900">{student.student_contact}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* ID Proof */}
-          {student.id_proof && (
+          {/* ✅ FIXED: Was checking student.id_proof (doesn't exist) — now correctly checks student.documents */}
+          {student.document && student.document.length > 0 && (
             <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
               <h3 className="text-base font-bold text-gray-900 mb-4 uppercase tracking-wide">
-                ID Proof Document
+                Documents
               </h3>
-              <div className="bg-white rounded-lg p-4 border border-gray-200 inline-block">
-                <img
-                  src={student.id_proof}
-                  alt="ID Proof"
-                  className="max-w-md rounded-lg shadow-sm"
-                />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {student.document.map((doc) => {
+                  const fileUrl = doc.file;
+                  // Cloudinary PDF URLs contain "/raw/upload/" or end with ".pdf"
+                  const isPdf =
+                    typeof fileUrl === "string" &&
+                    (fileUrl.toLowerCase().endsWith(".pdf") ||
+                      fileUrl.toLowerCase().includes("/raw/upload/"));
+
+                  return (
+                    <a
+                      key={doc.id}
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative border border-gray-200 rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow"
+                    >
+                      {isPdf ? (
+                        <div className="w-full h-28 flex flex-col items-center justify-center bg-red-50">
+                          <svg
+                            className="text-red-400 mb-1"
+                            width="32"
+                            height="32"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                            />
+                          </svg>
+                          <span className="text-xs font-semibold text-red-400">PDF</span>
+                        </div>
+                      ) : (
+                        <img
+                          src={fileUrl}
+                          alt={doc.document_type || "Document"}
+                          className="w-full h-28 object-cover"
+                        />
+                      )}
+                      <div className="p-2">
+                        <p className="text-xs text-gray-500 capitalize truncate">
+                          {doc.document_type || "Document"}
+                        </p>
+                        <p className="text-xs text-blue-500 group-hover:underline">
+                          View →
+                        </p>
+                      </div>
+                    </a>
+                  );
+                })}
               </div>
             </div>
           )}

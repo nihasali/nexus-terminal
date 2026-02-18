@@ -11,14 +11,99 @@ import {
   Users,
   MapPin,
   Droplet,
-  FileText,
   Upload,
   Save,
   ArrowLeft,
   AlertCircle,
-  CheckCircle2,
 } from "lucide-react";
-import Toast from '../../components/Toast';
+import Toast from "../../components/Toast";
+
+// ✅ FIX 2: Moved OUTSIDE component to prevent remount on every render (cursor disappearing bug)
+const InputField = ({
+  icon: Icon,
+  label,
+  name,
+  type = "text",
+  required = false,
+  placeholder,
+  className = "",
+  formData,
+  errors,
+  handleChange,
+}) => (
+  <div className={className}>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Icon className="text-gray-400" size={18} />
+      </div>
+      <input
+        type={type}
+        name={name}
+        value={formData[name]}
+        onChange={handleChange}
+        placeholder={placeholder}
+        required={required}
+        className={`block w-full pl-10 pr-3 py-2.5 border ${
+          errors[name] ? "border-red-500" : "border-gray-300"
+        } rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all text-sm`}
+      />
+    </div>
+    {errors[name] && (
+      <p className="text-red-500 text-xs mt-1.5 flex items-center">
+        <AlertCircle size={12} className="mr-1" />
+        {errors[name]}
+      </p>
+    )}
+  </div>
+);
+
+// ✅ FIX 2: Moved OUTSIDE component
+const SelectField = ({
+  icon: Icon,
+  label,
+  name,
+  options,
+  required = false,
+  className = "",
+  formData,
+  errors,
+  handleChange,
+}) => (
+  <div className={className}>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Icon className="text-gray-400" size={18} />
+      </div>
+      <select
+        name={name}
+        value={formData[name]}
+        onChange={handleChange}
+        required={required}
+        className={`block w-full pl-10 pr-3 py-2.5 border ${
+          errors[name] ? "border-red-500" : "border-gray-300"
+        } rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all appearance-none bg-white text-sm`}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+    {errors[name] && (
+      <p className="text-red-500 text-xs mt-1.5 flex items-center">
+        <AlertCircle size={12} className="mr-1" />
+        {errors[name]}
+      </p>
+    )}
+  </div>
+);
 
 function CreateStudent() {
   const navigate = useNavigate();
@@ -36,73 +121,78 @@ function CreateStudent() {
     guardian_phone: "",
     address: "",
     student_contact: "",
-    id_proof: null,
+    documents: null,
   });
 
-  const [idProofPreview, setIdProofPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [errors, setErrors] = useState({});
+  const [uploadedFiles, setUploadedFiles] = useState([]);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
 
-    if (name === "id_proof") {
-      const file = files[0];
-      if (file) {
-        if (file.size > 5 * 1024 * 1024) {
-          setToast({
-            message: "File size should be less than 5MB",
-            type: "error",
-          });
-          return;
-        }
-        setFormData({ ...formData, id_proof: file });
-        setIdProofPreview(file.name);
-      }
-    } else {
-      setFormData({ ...formData, [name]: value });
+    if (name === "documents") {
+      const newFiles = Array.from(files);
+      const existingFiles = formData.documents ? Array.from(formData.documents) : [];
+      const merged = [...existingFiles];
+      newFiles.forEach((newFile) => {
+        const isDuplicate = merged.some(
+          (f) => f.name === newFile.name && f.size === newFile.size
+        );
+        if (!isDuplicate) merged.push(newFile);
+      });
+
+      const dt = new DataTransfer();
+      merged.forEach((f) => dt.items.add(f));
+      setFormData({ ...formData, documents: dt.files });
+
+      const previews = merged.map((file) => ({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+      }));
+      setUploadedFiles(previews);
+      return;
     }
+
+    setFormData({ ...formData, [name]: value });
 
     if (errors[name]) {
       setErrors({ ...errors, [name]: "" });
     }
   };
 
+  const removeFile = (indexToRemove) => {
+    const existing = formData.documents ? Array.from(formData.documents) : [];
+    const updated = existing.filter((_, i) => i !== indexToRemove);
+
+    const dt = new DataTransfer();
+    updated.forEach((f) => dt.items.add(f));
+    setFormData({ ...formData, documents: dt.files });
+
+    setUploadedFiles((prev) => {
+      const newList = prev.filter((_, i) => i !== indexToRemove);
+      // Revoke old object URL to avoid memory leaks
+      if (prev[indexToRemove]?.preview) {
+        URL.revokeObjectURL(prev[indexToRemove].preview);
+      }
+      return newList;
+    });
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.fullname.trim()) {
-      newErrors.fullname = "Full name is required";
-    }
-
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    }
-
-    if (!formData.gender) {
-      newErrors.gender = "Gender is required";
-    }
-
-    if (!formData.DOB) {
-      newErrors.DOB = "Date of birth is required";
-    }
-
-    if (!formData.roll_number.trim()) {
-      newErrors.roll_number = "Roll number is required";
-    }
-
-    if (!formData.date_of_joining) {
-      newErrors.date_of_joining = "Date of joining is required";
-    }
-
-    if (!formData.guardian_name.trim()) {
-      newErrors.guardian_name = "Guardian name is required";
-    }
-
-    if (!formData.guardian_phone) {
-      newErrors.guardian_phone = "Guardian phone is required";
-    }
+    if (!formData.fullname.trim()) newErrors.fullname = "Full name is required";
+    if (!formData.email) newErrors.email = "Email is required";
+    if (!formData.gender) newErrors.gender = "Gender is required";
+    if (!formData.DOB) newErrors.DOB = "Date of birth is required";
+    if (!formData.roll_number.trim()) newErrors.roll_number = "Roll number is required";
+    if (!formData.date_of_joining) newErrors.date_of_joining = "Date of joining is required";
+    if (!formData.guardian_name.trim()) newErrors.guardian_name = "Guardian name is required";
+    if (!formData.guardian_phone) newErrors.guardian_phone = "Guardian phone is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -123,11 +213,20 @@ function CreateStudent() {
 
     const data = new FormData();
 
+    // ✅ FIX 1: Skip 'documents' key here to avoid double-appending
     Object.keys(formData).forEach((key) => {
+      if (key === "documents") return;
       if (formData[key] !== null && formData[key] !== "") {
         data.append(key, formData[key]);
       }
     });
+
+    // Append document files individually
+    if (formData.documents && formData.documents.length > 0) {
+      for (let i = 0; i < formData.documents.length; i++) {
+        data.append("documents", formData.documents[i]);
+      }
+    }
 
     try {
       const res = await api.post("Profile/school-students/create/", data);
@@ -150,69 +249,8 @@ function CreateStudent() {
     }
   };
 
-  const InputField = ({ icon: Icon, label, name, type = "text", required = false, placeholder, className = "" }) => (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Icon className="text-gray-400" size={18} />
-        </div>
-        <input
-          type={type}
-          name={name}
-          value={formData[name]}
-          onChange={handleChange}
-          placeholder={placeholder}
-          required={required}
-          className={`block w-full pl-10 pr-3 py-2.5 border ${
-            errors[name] ? "border-red-500" : "border-gray-300"
-          } rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all text-sm`}
-        />
-      </div>
-      {errors[name] && (
-        <p className="text-red-500 text-xs mt-1.5 flex items-center">
-          <AlertCircle size={12} className="mr-1" />
-          {errors[name]}
-        </p>
-      )}
-    </div>
-  );
-
-  const SelectField = ({ icon: Icon, label, name, options, required = false, className = "" }) => (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Icon className="text-gray-400" size={18} />
-        </div>
-        <select
-          name={name}
-          value={formData[name]}
-          onChange={handleChange}
-          required={required}
-          className={`block w-full pl-10 pr-3 py-2.5 border ${
-            errors[name] ? "border-red-500" : "border-gray-300"
-          } rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all appearance-none bg-white text-sm`}
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      {errors[name] && (
-        <p className="text-red-500 text-xs mt-1.5 flex items-center">
-          <AlertCircle size={12} className="mr-1" />
-          {errors[name]}
-        </p>
-      )}
-    </div>
-  );
+  // Shared props passed to InputField and SelectField
+  const fieldProps = { formData, errors, handleChange };
 
   return (
     <Layout>
@@ -252,7 +290,8 @@ function CreateStudent() {
         {/* Form Content */}
         <div className="max-w-4xl mx-auto px-8 py-12">
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Basic Information */}
+
+            {/* Section 1: Basic Information */}
             <div className="space-y-6">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
@@ -271,8 +310,8 @@ function CreateStudent() {
                   placeholder="John Doe"
                   required
                   className="md:col-span-2"
+                  {...fieldProps}
                 />
-
                 <InputField
                   icon={Mail}
                   label="Email Address"
@@ -280,16 +319,16 @@ function CreateStudent() {
                   type="email"
                   placeholder="student@example.com"
                   required
+                  {...fieldProps}
                 />
-
                 <InputField
                   icon={Phone}
                   label="Phone Number"
                   name="phone"
                   type="tel"
                   placeholder="+91 1234567890"
+                  {...fieldProps}
                 />
-
                 <SelectField
                   icon={User}
                   label="Gender"
@@ -301,19 +340,20 @@ function CreateStudent() {
                     { value: "female", label: "Female" },
                     { value: "other", label: "Other" },
                   ]}
+                  {...fieldProps}
                 />
-
                 <InputField
                   icon={Calendar}
                   label="Date of Birth"
                   name="DOB"
                   type="date"
                   required
+                  {...fieldProps}
                 />
               </div>
             </div>
 
-            {/* Academic Information */}
+            {/* Section 2: Academic Details */}
             <div className="space-y-6 pt-8 border-t border-gray-200">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
@@ -331,34 +371,35 @@ function CreateStudent() {
                   name="roll_number"
                   placeholder="e.g., 2024001"
                   required
+                  {...fieldProps}
                 />
-
                 <InputField
                   icon={Calendar}
                   label="Date of Joining"
                   name="date_of_joining"
                   type="date"
                   required
+                  {...fieldProps}
                 />
-
                 <InputField
                   icon={Droplet}
                   label="Blood Group"
                   name="blood_group"
                   placeholder="e.g., O+"
+                  {...fieldProps}
                 />
-
                 <InputField
                   icon={Phone}
                   label="Student Contact"
                   name="student_contact"
                   type="tel"
                   placeholder="+91 9876543210"
+                  {...fieldProps}
                 />
               </div>
             </div>
 
-            {/* Guardian Information */}
+            {/* Section 3: Guardian Information */}
             <div className="space-y-6 pt-8 border-t border-gray-200">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
@@ -376,8 +417,8 @@ function CreateStudent() {
                   name="guardian_name"
                   placeholder="Parent/Guardian Full Name"
                   required
+                  {...fieldProps}
                 />
-
                 <InputField
                   icon={Phone}
                   label="Guardian Phone"
@@ -385,6 +426,7 @@ function CreateStudent() {
                   type="tel"
                   placeholder="+91 9876543210"
                   required
+                  {...fieldProps}
                 />
 
                 <div className="md:col-span-2">
@@ -408,7 +450,7 @@ function CreateStudent() {
               </div>
             </div>
 
-            {/* Documents */}
+            {/* Section 4: Documents */}
             <div className="space-y-6 pt-8 border-t border-gray-200">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
@@ -421,37 +463,109 @@ function CreateStudent() {
 
               <div className="pl-10">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ID Proof (Optional)
+                  Documents (Optional)
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-gray-400 transition-colors">
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+
+                {/* Drop zone */}
+                <label className="cursor-pointer block">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-gray-400 hover:bg-gray-50 transition-colors text-center">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3 mx-auto">
                       <Upload className="text-gray-500" size={24} />
                     </div>
-                    <label className="cursor-pointer">
-                      <span className="text-sm font-medium text-gray-900 hover:text-gray-700">
-                        Click to upload
-                      </span>
-                      <span className="text-sm text-gray-500"> or drag and drop</span>
+                    <p className="text-sm font-medium text-gray-900">
+                      Click to upload{" "}
+                      <span className="text-gray-500 font-normal">or drag and drop</span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      PDF, JPG, PNG up to 5MB each — multiple files allowed
+                    </p>
+                    <input
+                      type="file"
+                      name="documents"
+                      multiple
+                      onChange={handleChange}
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+                  </div>
+                </label>
+
+                {/* File preview grid */}
+                {uploadedFiles.length > 0 && (
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {uploadedFiles.map((file, idx) => (
+                      <div
+                        key={idx}
+                        className="relative group border border-gray-200 rounded-lg overflow-hidden bg-gray-50"
+                      >
+                        {/* Image preview */}
+                        {file.preview ? (
+                          <img
+                            src={file.preview}
+                            alt={file.name}
+                            className="w-full h-24 object-cover"
+                          />
+                        ) : (
+                          /* PDF placeholder */
+                          <div className="w-full h-24 flex flex-col items-center justify-center bg-red-50">
+                            <svg
+                              className="text-red-400 mb-1"
+                              width="28"
+                              height="28"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={1.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                              />
+                            </svg>
+                            <span className="text-xs text-red-400 font-medium">PDF</span>
+                          </div>
+                        )}
+
+                        {/* File info */}
+                        <div className="p-2">
+                          <p className="text-xs text-gray-700 font-medium truncate" title={file.name}>
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {(file.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+
+                        {/* Remove button — appears on hover */}
+                        <button
+                          type="button"
+                          onClick={() => removeFile(idx)}
+                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                          title="Remove file"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                            <path d="M9 3L3 9M3 3l6 6" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add more tile */}
+                    <label className="cursor-pointer border-2 border-dashed border-gray-200 rounded-lg h-full min-h-[7rem] flex flex-col items-center justify-center hover:border-gray-400 hover:bg-gray-50 transition-colors">
+                      <Upload size={20} className="text-gray-400 mb-1" />
+                      <span className="text-xs text-gray-400">Add more</span>
                       <input
                         type="file"
-                        name="id_proof"
+                        name="documents"
+                        multiple
                         onChange={handleChange}
                         className="hidden"
                         accept=".pdf,.jpg,.jpeg,.png"
                       />
                     </label>
-                    <p className="text-xs text-gray-500 mt-2">
-                      PDF, JPG, PNG up to 5MB
-                    </p>
-                    {idProofPreview && (
-                      <div className="mt-4 flex items-center space-x-2 text-sm text-green-600">
-                        <CheckCircle2 size={16} />
-                        <span>{idProofPreview}</span>
-                      </div>
-                    )}
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
