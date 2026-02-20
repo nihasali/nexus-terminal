@@ -3,7 +3,9 @@ from .views import (
     CreateTeacherView, SetPasswordView,
     TeacherListView,TeacherDetailView,TeacherUpdateView,
     TeacherProfileCompletionView,TeacherProfileView,TeacherEditProfileView,
-    CreateStudentView,StudentListView,StudentDetailView,StudentEditView
+    CreateStudentView,StudentListView,StudentDetailView,StudentEditView,
+    CreateParentView,ParentListView,StudentLookupView,ParentDetailView,ParentStudentLinkView,ParentDashboardView,ParentProfileView,ParentProfileUpdateView,
+
     
 )
 
@@ -20,5 +22,13 @@ urlpatterns = [
     path("school-students/list/", StudentListView.as_view()),
     path("school-students/details/<int:pk>/", StudentDetailView.as_view()),
     path("school-students/edit/<int:pk>/", StudentEditView.as_view()),
+    path('school-parents/create/', CreateParentView.as_view()),
+    path('school-parents/list/',  ParentListView.as_view()),
+    path('school-students/lookup/', StudentLookupView.as_view()),
+    path('school-parents/details/<int:pk>/', ParentDetailView.as_view()),
+    path('school-parents/<int:pk>/link-students/', ParentStudentLinkView.as_view()),
+    path("parent/dashboard/", ParentDashboardView.as_view()),
+    path("parent/profile/",        ParentProfileView.as_view()),
+    path("parent/profile/update/", ParentProfileUpdateView.as_view()),
 
 ]

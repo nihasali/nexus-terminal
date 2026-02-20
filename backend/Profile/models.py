@@ -83,3 +83,19 @@ class StudentDocument(models.Model):
 
     def __str__(self):
         return f'{self.student.user.fullname}-{self.document_type}'
+
+
+class ParentProfile(models.Model):
+    user       = models.OneToOneField(User, on_delete=models.CASCADE, related_name='parent_profile')
+    students   = models.ManyToManyField(StudentProfile, related_name='parents', blank=True)
+    occupation = models.CharField(max_length=100, blank=True, null=True)
+    relation   = models.CharField(
+        max_length=50,
+        choices=[("father","Father"), ("mother","Mother"), ("guardian","Guardian")],
+        blank=True, null=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.user.fullname

@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from .serializers import (CreateTeacherSerializer,SetPasswordSerializer,TeacherListSerializer,TeacherDetailSerializer,
 UpdateTeacherSerializer,TeacherProfileCompletionSerializer,TeacherProfileEditSerializer,
-StudentListSerializer,CreateStudentSerializer,StudentDetailSerializer,UpdateStudentSerializer)
-from .models import TeacherProfile,PasswordSetupToken,StudentProfile,StudentDocument
+StudentListSerializer,CreateStudentSerializer,StudentDetailSerializer,UpdateStudentSerializer,
+CreateParentSerializer,ParentListSerializer,UpdateParentSerializer,ParentStudentLinkSerializer)
+from .models import TeacherProfile,PasswordSetupToken,StudentProfile,StudentDocument,ParentProfile
 from Users.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -486,6 +487,292 @@ class StudentEditView(APIView):
 
         if serializer.is_valid():
             serializer.save()
+
+            delete_ids = request.data.getlist('delete_documents')
+            if delete_ids:
+                StudentDocument.objects.filter(
+                    id__in=delete_ids,student=student
+                ).delete()
+
+            new_docs = request.FILES.getlist('documents')
+            for doc in new_docs:
+                StudentDocument.objects.create(
+                    student=student,
+                    file = doc,
+                    document_type='id_proof'
+
+                )
+
             return Response({'message':'Student updated successfully'})
 
         return Response(serializer.errors,status=400)
+
+
+class CreateParentView(APIView):
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsSchool]
+
+    def post(self,request):
+        serializer = CreateParentSerializer(data=request.data)
+
+        if serializer.is_valid():
+            data = serializer.validated_data
+            school = request.user.school
+
+            admission_numbers=data.get('admission_numbers',[])
+
+            if admission_numbers:
+                students = StudentProfile.objects.filter(
+                    admission_number__in = admission_numbers,
+                    user__school = school
+                )
+
+                found = set(students.values_list('admission_number',flat= True))
+                invalid = set(admission_numbers)-found
+
+                if invalid:
+                    return Response(
+                        {'error': f'Students not found: {", ".join(invalid)}'},
+                        status=400
+                    )
+
+            with transaction.atomic():
+                user = User.objects.create(
+                    fullname=data['fullname'],
+                    email     = data['email'],
+                    phone     = data.get('phone'),
+                    gender    = data.get('gender'),
+                    DOB       = data.get('DOB'),
+                    user_type = 'parent',
+                    school    = school,
+                    is_setup_complete = False
+                )
+
+                user.set_unusable_password()
+                user.save()
+
+                parent = ParentProfile.objects.create(
+                    user = user,
+                    occupation = data.get('occupation'),
+                    relation = data.get('relation')
+                )
+
+                if admission_numbers:
+                    parent.students.set(students)
+
+            send_set_password_email(user)
+
+            return Response({'message':'Parent created succesfully'},status=201)
+
+        return Response(serializers.errors,status=400)
+
+
+class ParentListView(APIView):
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes     = [IsSchool]
+
+    def get(self, request):
+        school  = request.user.school
+        parents = ParentProfile.objects.filter(
+            user__school=school
+        ).select_related('user').prefetch_related('students__user')
+
+        serializer = ParentListSerializer(parents, many=True)
+        return Response(serializer.data)
+
+
+class StudentLookupView(APIView):
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsSchool]
+
+    def get(self, request):
+        num = request.query_params.get("admission_number")
+        student = get_object_or_404(
+            StudentProfile, admission_number=num, user__school=request.user.school
+        )
+        return Response({
+            "admission_number": student.admission_number,
+            "fullname": student.user.fullname,
+        })
+
+
+
+class ParentDetailView(APIView):
+    authentication_classes=[CookieJWTAuthentication]
+    permission_classes = [IsSchool]
+
+    def get(self,request,pk):
+        
+        school = request.user.school
+
+        parent = get_object_or_404(
+            ParentProfile.objects.select_related('user').prefetch_related('students__user'),
+            pk = pk,
+            user__school = school
+        )
+
+        serializer = ParentListSerializer(parent)
+        return Response(serializer.data)
+
+
+    def patch(self,request,pk):
+
+        school = request.user.school
+        parent = get_object_or_404(ParentProfile,pk=pk,user__school=school)
+
+        serializer = UpdateParentSerializer(data=request.data,partial=True)
+
+        if serializer.is_valid():
+            data = serializer.validated_data
+
+            for field in ['fullname','phone','gender','DOB']:
+                if field in data:
+                    setattr(parent.user,field,data[field])
+
+            parent.user.save()
+
+            for field in ['occupation','relation']:
+                if field in data:
+                    setattr(parent,field,data[field])
+
+            parent.save()
+
+            return Response({'message':'Updated Profile Successfully'})
+
+        return Response(serializer.errors,status=400)
+
+
+    def delete(self,request,pk):
+        school = request.user.school
+        parent = get_object_or_404(ParentProfile,pk=pk,user__school=school)
+        parent.user.delete()
+        return Response({'message':'Parent Deleted successfully'})
+
+
+
+class ParentStudentLinkView(APIView):
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes=[IsSchool]
+
+    def post(self,request,pk):
+        school = request.user.school
+        parent = get_object_or_404(ParentProfile,pk=pk,user__school=school)
+
+        serializer = ParentStudentLinkSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors,status=400)
+
+        admission_numbers = serializer.validated_data['admission_numbers']
+
+        students = StudentProfile.objects.filter(
+            admission_number__in = admission_numbers,
+            user__school = school
+        )
+
+        found = set(students.values_list('admission_number',flat = True))
+        invalid = set(admission_numbers)-found
+        if invalid:
+            return Response(
+                {'error': f'Students not found: {", ".join(invalid)}'},
+                status=400
+            )
+
+        already_linked = set(
+            parent.students.filter(
+                admission_number__in = admission_numbers
+            ).values_list('admission_number',flat = True)
+        )
+
+        if already_linked:
+            return Response(
+                {'error': f'Already linked to this parent: {", ".join(already_linked)}'},
+                status=400
+            )
+
+        parent.students.add(*students)
+
+        return Response({
+            'message':  f'{students.count()} student(s) linked successfully',
+            'linked':   list(found),
+        })
+
+    def delete(self,request,pk):
+
+        school = request.user.school
+        parent = get_object_or_404(ParentProfile, pk=pk, user__school=school)
+
+        serializer = ParentStudentLinkSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        admission_numbers = serializer.validated_data['admission_numbers']
+
+        students = StudentProfile.objects.filter(
+            admission_number__in=admission_numbers,
+            user__school=school
+        )
+
+        parent.students.remove(*students)
+
+        return Response({
+            'message': f'{students.count()} student(s) unlinked successfully'
+        })
+
+
+
+class ParentDashboardView(APIView):
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        parent = request.user.parent_profile
+        return Response({
+            "children": [
+                { "id": s.id, "fullname": s.user.fullname }
+                for s in parent.students.select_related("user").all()
+            ],
+            "announcements": []
+        })
+
+
+class ParentProfileView(APIView):
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        parent = request.user.parent_profile
+        students = parent.students.select_related("user").all()
+        return Response({
+            "fullname":   request.user.fullname,
+            "email":      request.user.email,
+            "phone":      request.user.phone,
+            "gender":     request.user.gender,
+            "DOB":        request.user.DOB,
+            "profile_picture": request.user.profile_picture.url if request.user.profile_picture else None,
+            "occupation": parent.occupation,
+            "relation":   parent.relation,
+            "students": [
+                { "id": s.id, "fullname": s.user.fullname, "admission_number": s.admission_number }
+                for s in students
+            ],
+        })
+
+
+class ParentProfileUpdateView(APIView):
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
+
+    def patch(self,request):
+        user = request.user
+
+        if 'profile_picture' in request.FILES:
+            user.profile_picture = request.FILES['profile_picture']
+            user.save()
+
+        return Response({'profile_picture':user.profile_picture.url if user.profile_picture else None})
+
+
+

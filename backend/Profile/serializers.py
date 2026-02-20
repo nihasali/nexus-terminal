@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from Users.models import User
-from .models import TeacherProfile,StudentProfile,StudentDocument
+from .models import TeacherProfile,StudentProfile,StudentDocument,ParentProfile
 from django.core.validators import MinValueValidator
 
 
@@ -264,7 +264,7 @@ class StudentListSerializer(serializers.ModelSerializer):
         ]
 
 class StudentDocumentSerializer(serializers.ModelSerializer):
-    file = serializers.SerializerMethodField()  # ← add this
+    file = serializers.SerializerMethodField() 
 
     class Meta:
         model = StudentDocument
@@ -272,7 +272,7 @@ class StudentDocumentSerializer(serializers.ModelSerializer):
 
     def get_file(self, obj):
         if obj.file:
-            return obj.file.url  # ← returns the full Cloudinary URL
+            return obj.file.url 
         return None
 
 
@@ -316,7 +316,6 @@ class StudentDetailSerializer(serializers.ModelSerializer):
 
 class UpdateStudentSerializer(serializers.ModelSerializer):
 
-    # User fields
     fullname = serializers.CharField(source="user.fullname", required=False)
     phone = serializers.CharField(source="user.phone", required=False)
     gender = serializers.CharField(source="user.gender", required=False)
@@ -344,16 +343,109 @@ class UpdateStudentSerializer(serializers.ModelSerializer):
 
         user_data = validated_data.pop("user", {})
 
-        # Update User fields
+        # ------------------------------Update User fields-------------------
         for attr, value in user_data.items():
             setattr(instance.user, attr, value)
 
         instance.user.save()
 
-        # Update StudentProfile fields
+        # -------------------------------Update StudentProfile fields-------
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         instance.save()
 
         return instance
+
+
+
+class CreateParentSerializer(serializers.Serializer):
+
+    fullname  = serializers.CharField(max_length=255)
+    email     = serializers.EmailField()
+    phone     = serializers.CharField(required=False)
+    gender = serializers.ChoiceField(
+        choices=[('male','Male'),('female','Female'),('other','Other')]
+    )
+    DOB = serializers.DateField(required=False)
+    occupation = serializers.CharField(required=False,allow_blank=True)
+    relation = serializers.ChoiceField(
+        choices=[('father','Father'),('mother','Mother'),('guardian','Guardian')],
+        required=False
+    )
+    admission_numbers=serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        write_only=True
+    )
+
+    def validate_email(self,value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError('This email already taken')
+
+        return value
+
+
+
+
+class ParentListSerializer(serializers.ModelSerializer):
+    fullname        = serializers.CharField(source='user.fullname')
+    email           = serializers.CharField(source='user.email')
+    phone           = serializers.CharField(source='user.phone')
+    gender          = serializers.CharField(source='user.gender')
+    DOB             = serializers.DateField(source='user.DOB')
+    profile_picture = serializers.SerializerMethodField()
+    students        = serializers.SerializerMethodField()
+    student_count   = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = ParentProfile
+        fields = [
+            'id', 'fullname', 'email', 'phone', 'gender', 'DOB',
+            'occupation', 'relation', 'profile_picture',
+            'students', 'student_count'
+        ]
+
+    
+    def get_profile_picture(self,obj):
+        if obj.user.profile_picture:
+            return obj.user.profile_picture.url
+
+        return None
+
+    def get_students(self,obj):
+        return [
+            {
+                'id':s.id,
+                'fullname':s.user.fullname,
+                'admission_number':s.admission_number,
+                'class_name':s.class_name if hasattr(s,'class_name') else None,
+            }
+            for s in obj.students.select_related('user').all()
+        ]
+
+    def get_student_count(self,obj):
+        return obj.students.count()
+
+
+
+class UpdateParentSerializer(serializers.Serializer):
+    fullname   = serializers.CharField(required=False)
+    phone      = serializers.CharField(required=False)
+    gender     = serializers.ChoiceField(
+        choices=[("male","Male"), ("female","Female"), ("other","Other")],
+        required=False
+    )
+    DOB        = serializers.DateField(required=False)
+    occupation = serializers.CharField(required=False, allow_blank=True)
+    relation   = serializers.ChoiceField(
+        choices=[("father","Father"), ("mother","Mother"), ("guardian","Guardian")],
+        required=False
+    )
+
+
+class ParentStudentLinkSerializer(serializers.Serializer):
+    admission_numbers = serializers.ListField(
+        child=serializers.CharField(),
+        min_length=1
+    )

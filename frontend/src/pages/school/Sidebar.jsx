@@ -54,7 +54,7 @@ function Sidebar() {
     {
       title: "Parents Management",
       icon: <UserCog size={18} />,
-      path: "/parents-management",
+      path: "/school-parents/list/",
     },
     {
       title: "Class Management",

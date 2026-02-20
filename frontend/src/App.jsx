@@ -26,6 +26,14 @@ import CreateStudent from './pages/school/StudentCreate';
 import StudentEdit from './pages/school/StudentEdit';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentRoute from './components/StudentRoute';
+import CreateParent from './pages/school/CreateParent';
+import ParentList from './pages/school/ParentList';
+import ParentDetail from './pages/school/ParentDetail';
+import ParentEdit from './pages/school/ParentEdit';
+import ParentRoute from './components/ParentRoute';
+import ParentDashboard from './pages/parent/ParentDashboard';
+import ParentProfile from './pages/parent/ParentProfile';
+
 
 function App() {
   const dispatch = useDispatch();
@@ -68,6 +76,10 @@ function App() {
         <Route path="/school-student-details/:id" element={<SchoolRoute><StudentDetail /></SchoolRoute>} />
         <Route path="/school-student-edit/:id" element={<SchoolRoute><StudentEdit /></SchoolRoute>} />
         <Route path="/school-student-create/" element={<SchoolRoute><CreateStudent /></SchoolRoute>} />
+        <Route path="/school-parents/create/" element={<SchoolRoute><CreateParent /></SchoolRoute>} />
+        <Route path="/school-parents/list/" element={<SchoolRoute><ParentList /></SchoolRoute>} />
+        <Route path="/school-parents/details/:id" element={<SchoolRoute><ParentDetail /></SchoolRoute>} />
+        <Route path="/school-parents/edit/:id" element={<SchoolRoute><ParentEdit /></SchoolRoute>} />
 
 
 
@@ -84,6 +96,11 @@ function App() {
         {/* --------------------------------------------------student private root-------------------------------------------------------------------- */}
         
         <Route path='/student/dashboard' element={<StudentRoute><StudentDashboard/></StudentRoute>}/>
+
+        {/* --------------------------------------------------Parent private root-------------------------------------------------------------------- */}
+
+        <Route path='/parent/dashboard' element={<ParentRoute><ParentDashboard/></ParentRoute>} />
+        <Route path='/parent/profile' element={<ParentRoute><ParentProfile/></ParentRoute>} />
 
 
       </Routes>
