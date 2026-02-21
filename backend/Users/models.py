@@ -4,6 +4,7 @@ from cloudinary.models import CloudinaryField
 import random
 from django.utils import timezone
 from .managers import UserManager
+from datetime import timedelta
 
 
 class School(models.Model):
@@ -108,3 +109,22 @@ class OTPVerification(models.Model):
     @staticmethod
     def generate_otp():
         return str(random.randint(100000, 999999))
+
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(User,on_delete=models.CASCADE,related_name='reset_token')
+    token = models.CharField(max_length=255,unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+
+    def is_valid(self):
+        return(
+            not self.is_used and
+            timezone.now() < self.created_at + timedelta(hours=24)
+        )
+
+    def __str__(self):
+        return f'Reset token for - {self.user.email}'
+

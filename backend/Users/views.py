@@ -3,10 +3,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from .serializers import SchoolSignupOTPSerializer, VerifyOTPSerializer,LoginSerializer
-from .models import OTPVerification, User,School
+from .serializers import SchoolSignupOTPSerializer, VerifyOTPSerializer,LoginSerializer,ForgotPasswordSerializer,ResetPasswordSerializer
+from .models import OTPVerification, User,School,PasswordResetToken
 from Profile.models import TeacherProfile
-from .utils import send_otp_email
+from .utils import send_otp_email,send_password_reset_email
 
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -204,3 +204,82 @@ class RefreshTokenView(APIView):
 
         except Exception:
             return Response({"error": "Invalid refresh token"}, status=401)
+
+
+
+class ForgotPasswordView(APIView):
+    authentication_classes=[]
+    permission_classes = []
+
+    def post(self,request):
+
+        serializer = ForgotPasswordSerializer(data = request.data)
+
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+
+            try:
+                user = User.objects.get(email=email)
+
+                PasswordResetToken.objects.filter(user=user,is_used=False).delete()
+
+                send_password_reset_email(user)
+
+            except User.DoesNotExist:
+                pass
+
+        return Response({'message':'If this email is registered.Password reset link has been sent'})
+
+
+class ValidateResetTokenView(APIView):
+    authentication_classes=[]
+    permission_classes = []
+
+    def get(self,request,token):
+
+        try:
+            reset_token = PasswordResetToken.objects.get(token=token)
+            if reset_token.is_valid():
+                return Response({'valid':True})
+
+            return Response({'error':'Token expired'},status=400)
+
+        except PasswordResetToken.DoesNotExist:
+            return Response({'error':'Invalid token'},status=400)
+
+
+
+class ResetPasswordView(APIView):
+    authentication_classes=[]
+    permission_classes = []
+
+    def post(self,request):
+
+        serializer = ResetPasswordSerializer(data=request.data)
+
+        if serializer.is_valid():
+            
+            token = serializer.validated_data['token']
+            password = serializer.validated_data['password']
+
+            try:
+                reset_token = PasswordResetToken.objects.get(token=token)
+
+                if not reset_token.is_valid():
+                    return Response({'error':'Token has expired or already used'},status=400)
+
+                user = reset_token.user
+                user.set_password(password)
+                user.save()
+
+                reset_token.is_used=True
+                reset_token.save()
+
+                return Response({'message':'Password reset successfully.'})
+
+
+            except PasswordResetToken.DoesNotExist:
+                return Response({'error':'Invalid reset token.'},status=400)
+
+        
+        return Response(serializers.errors,status=400)

@@ -15,7 +15,7 @@ from django.contrib.auth.tokens import default_token_generator
 from rest_framework.permissions import IsAuthenticated
 from Users.authentication import CookieJWTAuthentication
 from rest_framework.parsers import MultiPartParser, FormParser
-from Users.permissions import IsSchool,IsTeacher
+from Users.permissions import IsSchool,IsTeacher,IsStudent,IsParent
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 
@@ -724,7 +724,7 @@ class ParentStudentLinkView(APIView):
 
 class ParentDashboardView(APIView):
     authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsParent]
 
     def get(self, request):
         parent = request.user.parent_profile
@@ -739,7 +739,7 @@ class ParentDashboardView(APIView):
 
 class ParentProfileView(APIView):
     authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsParent]
 
     def get(self, request):
         parent = request.user.parent_profile
@@ -762,7 +762,7 @@ class ParentProfileView(APIView):
 
 class ParentProfileUpdateView(APIView):
     authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsParent]
     parser_classes = (MultiPartParser, FormParser)
 
     def patch(self,request):
@@ -775,4 +775,45 @@ class ParentProfileUpdateView(APIView):
         return Response({'profile_picture':user.profile_picture.url if user.profile_picture else None})
 
 
+class StudentProfileView(APIView):
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsStudent]
+
+    def get(self, request):
+        student = request.user.student_profile
+        return Response({
+            "fullname":         request.user.fullname,
+            "email":            request.user.email,
+            "phone":            request.user.phone,
+            "gender":           request.user.gender,
+            "DOB":              request.user.DOB,
+            "profile_picture":  request.user.profile_picture.url if request.user.profile_picture else None,
+            "admission_number": student.admission_number,
+            "roll_number":      student.roll_number,
+            "date_of_joining":  student.date_of_joining,
+            "blood_group":      student.blood_group,
+            "guardian_name":    student.guardian_name,
+            "guardian_phone":   student.guardian_phone,
+            "address":          student.address,
+            "student_contact":  student.student_contact,
+            "document": [
+                { "id": d.id, "file": d.file.url, "document_type": d.document_type }
+                for d in student.document.all()
+            ],
+        })
+
+
+class StudentProfileUpdateView(APIView):
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsStudent]
+    parser_classes = (MultiPartParser, FormParser)
+
+    def patch(self, request):
+        user = request.user
+        if "profile_picture" in request.FILES:
+            user.profile_picture = request.FILES["profile_picture"]
+            user.save()
+        return Response({
+            "profile_picture": user.profile_picture.url if user.profile_picture else None
+        })
 

@@ -6,6 +6,9 @@ from .views import (
     SchoolLogout,
     CurrentUserView,
     RefreshTokenView,
+    ForgotPasswordView,
+    ValidateResetTokenView,
+    ResetPasswordView
 
 )
 
@@ -16,4 +19,7 @@ urlpatterns = [
     path('logout/', SchoolLogout.as_view()),
     path('current-user/', CurrentUserView.as_view()),
     path('refresh-token/', RefreshTokenView.as_view()),
+    path('forgot-password/', ForgotPasswordView.as_view()),
+    path('reset-password/validate/<str:token>/', ValidateResetTokenView.as_view()),
+    path('reset-password/', ResetPasswordView.as_view())
 ]

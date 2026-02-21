@@ -245,6 +245,7 @@ class StudentListSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(source="user.phone")
     gender = serializers.CharField(source="user.gender")
     DOB = serializers.DateField(source="user.DOB")
+    profile_picture = serializers.ImageField(source='user.profile_picture')
 
     class Meta:
         model = StudentProfile
@@ -261,6 +262,7 @@ class StudentListSerializer(serializers.ModelSerializer):
             "phone",
             "gender",
             "DOB",
+            'profile_picture',
         ]
 
 class StudentDocumentSerializer(serializers.ModelSerializer):

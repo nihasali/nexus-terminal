@@ -33,7 +33,9 @@ import ParentEdit from './pages/school/ParentEdit';
 import ParentRoute from './components/ParentRoute';
 import ParentDashboard from './pages/parent/ParentDashboard';
 import ParentProfile from './pages/parent/ParentProfile';
-
+import StudentProfile from './pages/student/StudentProfile';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 
 function App() {
   const dispatch = useDispatch();
@@ -55,13 +57,15 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/*--------------------------------------------------------------- school public root--------------------------------------------------------- */}
+        {/*--------------------------------------------------------------- public root--------------------------------------------------------- */}
         
         <Route path='/' element={<Signup/> } />
         <Route path='/signup' element={<Signup/> } />
         <Route path='/verify-otp' element={<VerifyOTP/> } />
         <Route path='/login' element={<Login/>} />
         <Route path='/set-password/:token' element={<SetPassword />} />
+        <Route path="/forgot-password"       element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
         {/* -------------------------------------------------------------------------------------------------------------------------------------------*/}
 
@@ -96,6 +100,7 @@ function App() {
         {/* --------------------------------------------------student private root-------------------------------------------------------------------- */}
         
         <Route path='/student/dashboard' element={<StudentRoute><StudentDashboard/></StudentRoute>}/>
+        <Route path='/student/profile' element={<StudentRoute><StudentProfile/></StudentRoute>}/>
 
         {/* --------------------------------------------------Parent private root-------------------------------------------------------------------- */}
 
