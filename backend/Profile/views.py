@@ -8,9 +8,7 @@ from Users.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .utils import send_set_password_email,generate_admission_number
-
-from django.utils.http import urlsafe_base64_decode
-from django.contrib.auth.tokens import default_token_generator
+from rest_framework import status
 
 from rest_framework.permissions import IsAuthenticated
 from Users.authentication import CookieJWTAuthentication

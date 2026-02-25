@@ -59,7 +59,7 @@ function Sidebar() {
     {
       title: "Class Management",
       icon: <Clock size={18} />,
-      path: "/class-management",
+      path: "/school-classes",
     },
     {
       title: "Announcement",

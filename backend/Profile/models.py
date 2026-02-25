@@ -43,6 +43,13 @@ class StudentProfile(models.Model):
         unique=True
     )
 
+    classroom  = models.ForeignKey(
+        'Class.ClassRoom',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='students'
+    )
+
     roll_number = models.CharField(max_length=50)
 
     date_of_joining = models.DateField()

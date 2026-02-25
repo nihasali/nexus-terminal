@@ -36,6 +36,10 @@ import ParentProfile from './pages/parent/ParentProfile';
 import StudentProfile from './pages/student/StudentProfile';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
+import ClassList from './pages/school/ClassList';
+import ClassDetail from './pages/school/ClassDetail';
+import CreateClass from './pages/school/CreateClass';
+
 
 function App() {
   const dispatch = useDispatch();
@@ -84,6 +88,9 @@ function App() {
         <Route path="/school-parents/list/" element={<SchoolRoute><ParentList /></SchoolRoute>} />
         <Route path="/school-parents/details/:id" element={<SchoolRoute><ParentDetail /></SchoolRoute>} />
         <Route path="/school-parents/edit/:id" element={<SchoolRoute><ParentEdit /></SchoolRoute>} />
+        <Route path="/school-classes"          element={<SchoolRoute><ClassList /></SchoolRoute>} />
+        <Route path="/school-classes/create"   element={<SchoolRoute><CreateClass /></SchoolRoute>} />
+        <Route path="/school-classes/:id"      element={<SchoolRoute><ClassDetail /></SchoolRoute>} />
 
 
 
