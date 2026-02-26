@@ -2,9 +2,11 @@ from django.shortcuts import render
 from Users.models import User,School
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import ClassRoom
+from .models import ClassRoom,StudentAcademicRecord
 from .serializers import (CreateClassRoomSerializer,ClassRoomDetailSerializer,ClassRoomListSerializer,
-ClassStudentSerializer,ClassTeacherSerializer,AssignStudentsSerializer,AssignTeacherSerializer
+ClassStudentSerializer,ClassTeacherSerializer,AssignStudentsSerializer,AssignTeacherSerializer,
+StudentAcademicRecordSerializer,StudentAcademicRecordListSerializer,AcademicRecordClassroomSerializer,UpdateAcademicRecordSerializer,PromoteStudentsSerializer,
+
 )
 from Profile.models import TeacherProfile,PasswordSetupToken,StudentProfile,StudentDocument,ParentProfile
 from django.db.models import Count, Q
@@ -335,3 +337,85 @@ class AcademicYearsView(APIView):
             .order_by('-academic_year')
         )
         return Response(list(years))
+
+
+class StudentAcademicHistoryView(APIView):
+    """
+    student records will be accessible for every roles.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self,request,student_id):
+        
+        student = get_object_or_404(
+            StudentProfile,
+            pk = student_id,
+            user__school=request.user.school
+        )
+
+        records = StudentAcademicRecord.objects.filter(
+            student = student
+        ).select_related('classroom__class_teacher__user').order_by('-academic_year')
+
+        serializer = StudentAcademicRecordListSerializer(records,many=True)
+
+        return Response(serializer.data)
+
+
+class ClassAcademicRecordsView(APIView):
+    """
+    Returns all StudentAcademicRecords for students currently in this class.
+    Useful for building the attendance sheet and exam marks sheet.
+    Accessible by: school, class teacher of this class.
+    """
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes     = [IsSchool,IsTeacher]
+
+    def get(self,request,class_id):
+        
+        classroom = get_object_or_404(
+            ClassRoom,
+            pk = class_id,
+            school = request.user.school
+        )
+
+        records = StudentAcademicRecord.objects.filter(
+            classroom = classroom,
+            academic_year = academic_year,
+            is_current = True
+        ).select_related(
+            'student__user',
+            'classroom__class_teacher__user'
+        ).order_by('roll_number', 'student__user__fullname')
+
+        serializer = StudentAcademicRecordSerializer(records, many=True)
+        return Response(serializer.data)
+
+
+class UpdateAcademicRecordView(APIView):
+    """
+    Update roll number or remarks on a specific record.
+    Only the school can do this.
+    """
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes     = [IsSchool,IsTeacher]
+
+    def patch(self,request,record_id):
+
+        record = get_object_or_404(
+            StudentAcademicRecord,
+            pk = record_id,
+            classroom__school = request.user.school
+        )
+
+        serializer = UpdateAcademicRecordSerializer(
+            record,data = request.data,partial=True
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(StudentAcademicRecordSerializer(record).data)
+
+        return Response(serializer.errors,status==400)
