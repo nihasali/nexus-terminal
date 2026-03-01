@@ -7,6 +7,12 @@ from .views import (
     UnassignedStudentsView,
     AvailableTeachersView,
     AcademicYearsView,
+#     StudentAcademicHistoryView,
+#     CurrentAcademicRecordView,
+#     ClassAcademicRecordsView,
+#     UpdateAcademicRecordView,
+#     PromoteStudentsView,
+
 )
 
 urlpatterns = [
@@ -34,4 +40,24 @@ urlpatterns = [
 
     path('school-classes/academic-years/',
          AcademicYearsView.as_view()),
+
+#     # Full academic history for a student (all years)
+#     path('students/<int:student_id>/academic-history/',
+#          StudentAcademicHistoryView.as_view()),
+
+#     # Current active record for a student
+#     path('students/<int:student_id>/current-record/',
+#          CurrentAcademicRecordView.as_view()),
+
+#     # All current records for a class (attendance / marks sheet)
+#     path('school-classes/<int:class_id>/academic-records/',
+#          ClassAcademicRecordsView.as_view()),
+
+#     # Update roll number / remarks on a specific record
+#     path('academic-records/<int:record_id>/',
+#          UpdateAcademicRecordView.as_view()),
+
+#     # Promote students from one class to another
+#     path('school-classes/<int:class_id>/promote/',
+#          PromoteStudentsView.as_view()), 
 ]

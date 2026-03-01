@@ -74,7 +74,7 @@ function Sidebar() {
     {
       title: "Finance",
       icon: <DollarSign size={18} />,
-      path: "/finance",
+      path: "/school-subjects",
     },
     {
       title: "Leave Request",

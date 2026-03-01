@@ -2,12 +2,15 @@ from django.shortcuts import render
 from Users.models import User,School
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import ClassRoom,StudentAcademicRecord
+from .models import ClassRoom
 from .serializers import (CreateClassRoomSerializer,ClassRoomDetailSerializer,ClassRoomListSerializer,
 ClassStudentSerializer,ClassTeacherSerializer,AssignStudentsSerializer,AssignTeacherSerializer,
-StudentAcademicRecordSerializer,StudentAcademicRecordListSerializer,AcademicRecordClassroomSerializer,UpdateAcademicRecordSerializer,PromoteStudentsSerializer,
 
 )
+
+# from .serializers import StudentAcademicRecordSerializer,StudentAcademicRecordListSerializer,AcademicRecordClassroomSerializer,
+# UpdateAcademicRecordSerializer,PromoteStudentsSerializer
+
 from Profile.models import TeacherProfile,PasswordSetupToken,StudentProfile,StudentDocument,ParentProfile
 from django.db.models import Count, Q
 from rest_framework import status
@@ -339,83 +342,205 @@ class AcademicYearsView(APIView):
         return Response(list(years))
 
 
-class StudentAcademicHistoryView(APIView):
-    """
-    student records will be accessible for every roles.
-    """
+# class StudentAcademicHistoryView(APIView):
+#     """
+#     student records will be accessible for every roles.
+#     """
 
-    authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+#     authentication_classes = [CookieJWTAuthentication]
+#     permission_classes = [IsAuthenticated]
 
-    def get(self,request,student_id):
+#     def get(self,request,student_id):
         
-        student = get_object_or_404(
-            StudentProfile,
-            pk = student_id,
-            user__school=request.user.school
-        )
+#         student = get_object_or_404(
+#             StudentProfile,
+#             pk = student_id,
+#             user__school=request.user.school
+#         )
 
-        records = StudentAcademicRecord.objects.filter(
-            student = student
-        ).select_related('classroom__class_teacher__user').order_by('-academic_year')
+#         records = StudentAcademicRecord.objects.filter(
+#             student = student
+#         ).select_related('classroom__class_teacher__user').order_by('-academic_year')
 
-        serializer = StudentAcademicRecordListSerializer(records,many=True)
+#         serializer = StudentAcademicRecordListSerializer(records,many=True)
 
-        return Response(serializer.data)
+#         return Response(serializer.data)
 
 
-class ClassAcademicRecordsView(APIView):
-    """
-    Returns all StudentAcademicRecords for students currently in this class.
-    Useful for building the attendance sheet and exam marks sheet.
-    Accessible by: school, class teacher of this class.
-    """
-    authentication_classes = [CookieJWTAuthentication]
-    permission_classes     = [IsSchool,IsTeacher]
+# class ClassAcademicRecordsView(APIView):
+#     """
+#     Returns all StudentAcademicRecords for students currently in this class.
+#     Useful for building the attendance sheet and exam marks sheet.
+#     Accessible by: school, class teacher of this class.
+#     """
+#     authentication_classes = [CookieJWTAuthentication]
+#     permission_classes     = [IsSchool,IsTeacher]
 
-    def get(self,request,class_id):
+#     def get(self,request,class_id):
         
-        classroom = get_object_or_404(
-            ClassRoom,
-            pk = class_id,
-            school = request.user.school
-        )
+#         classroom = get_object_or_404(
+#             ClassRoom,
+#             pk = class_id,
+#             school = request.user.school
+#         )
 
-        records = StudentAcademicRecord.objects.filter(
-            classroom = classroom,
-            academic_year = academic_year,
-            is_current = True
-        ).select_related(
-            'student__user',
-            'classroom__class_teacher__user'
-        ).order_by('roll_number', 'student__user__fullname')
+#         records = StudentAcademicRecord.objects.filter(
+#             classroom = classroom,
+#             academic_year = academic_year,
+#             is_current = True
+#         ).select_related(
+#             'student__user',
+#             'classroom__class_teacher__user'
+#         ).order_by('roll_number', 'student__user__fullname')
 
-        serializer = StudentAcademicRecordSerializer(records, many=True)
-        return Response(serializer.data)
+#         serializer = StudentAcademicRecordSerializer(records, many=True)
+#         return Response(serializer.data)
 
 
-class UpdateAcademicRecordView(APIView):
-    """
-    Update roll number or remarks on a specific record.
-    Only the school can do this.
-    """
-    authentication_classes = [CookieJWTAuthentication]
-    permission_classes     = [IsSchool,IsTeacher]
+# class UpdateAcademicRecordView(APIView):
+#     """
+#     Update roll number or remarks on a specific record.
+#     Only the school can do this.
+#     """
+#     authentication_classes = [CookieJWTAuthentication]
+#     permission_classes     = [IsSchool,IsTeacher]
 
-    def patch(self,request,record_id):
+#     def patch(self,request,record_id):
 
-        record = get_object_or_404(
-            StudentAcademicRecord,
-            pk = record_id,
-            classroom__school = request.user.school
-        )
+#         record = get_object_or_404(
+#             StudentAcademicRecord,
+#             pk = record_id,
+#             classroom__school = request.user.school
+#         )
 
-        serializer = UpdateAcademicRecordSerializer(
-            record,data = request.data,partial=True
-        )
+#         serializer = UpdateAcademicRecordSerializer(
+#             record,data = request.data,partial=True
+#         )
 
-        if serializer.is_valid():
-            serializer.save()
-            return Response(StudentAcademicRecordSerializer(record).data)
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(StudentAcademicRecordSerializer(record).data)
 
-        return Response(serializer.errors,status==400)
+#         return Response(serializer.errors,status==400)
+
+
+# class PromoteStudentsView(APIView):
+#     """
+#     School selects students from a class and promotes them to a target class.
+
+#     What happens:
+#       1. Current academic record is closed (is_current=False, promoted=True/False)
+#       2. Student's classroom FK is updated to the target class
+#       3. Signal fires → new StudentAcademicRecord is created for the new year
+
+#     """
+
+#     authentication_classes = [CookieJWTAuthentication]
+#     permission_classes = [IsSchool]
+
+#     def post(self,request,class_id):
+
+#         source_class = get_object_or_404(
+#             ClassRoom,
+#             pk = class_id,
+#             school = request.user.school
+#         )
+
+#         serializer = PromoteStudentsSerializer(data = request.data)
+
+#         if not serializer.is_valid():
+#             return Response(serializer.errors,status=400)
+
+        
+#         student_ids = serializer.validated_data['student_ids']
+#         target_class_id = serializer.validated_data['target_class_id']
+#         promoted = serializer.validated_data['promoted']
+#         remarks = serializer.validated_data['remarks']
+
+#         target_class = get_object_or_404(
+#             ClassRoom,
+#             pk = target_class_id,
+#             school = request.user.school
+#         )
+
+#         if source_class.pk == target_class.pk:
+#             return Response(
+#                 {'error':'Source and target class cannot be the same.'},
+#                 status=400
+#             )
+
+#         students = StudentProfile.objects.filter(
+#             pk__in = student_ids,
+#             classroom=source_class,
+#             user__school = request.user.school
+#         )
+
+#         if students.count() != len(student_ids):
+#             return Response(
+#                 {'error': 'Some students were not found in this class.'},
+#                 status=400
+#             )
+
+
+#         promoted_count = 0
+
+#         for student in students:
+#             try:
+#                 current_record = StudentAcademicRecord.objects.get(
+#                     student=student,
+#                     academic_year = source_class.academic_year,
+#                     is_current = True
+#                 )
+
+#                 current_record.close(promoted=promoted,remarks=remarks)  # activating the clase function on models,and triggering the signals
+
+#             except StudentAcademicRecord.DoesNotExist:
+#                 pass
+
+#             student.classroom = target_class
+#             student.save()
+
+#             promoted_count+=1
+
+
+#         return Response({
+#             'message': f'{promoted_count} student(s) moved to '
+#                        f'Class {target_class.name} {target_class.section or ""} '
+#                        f'({target_class.academic_year}).',
+#             'promoted_count': promoted_count,
+#         })
+
+
+# class CurrentAcademicRecordView(APIView):
+#     """
+   
+#     Returns the student's current active academic record.
+#     Used by school,teacher, student dashboard and parent dashboard .
+#     """
+#     authentication_classes = [CookieJWTAuthentication]
+#     permission_classes     = [IsAuthenticated]
+
+
+#     def get(self,request,student_id):
+
+#         student = get_object_or_404(
+#             StudentProfile,
+#             pk = class_id,
+#             user__school = request.user.school
+#         )
+
+#         record = StudentAcademicRecord.objects.filter(
+#             student = student,
+#             is_current = True
+#         ).select_related(
+#             'classroom__class_teacher__user'
+#         ).first()
+
+#         if not record:
+#             return Response(
+#                 {'error': 'No active academic record found for this student.'},
+#                 status=404
+#             )
+
+#         serializer = StudentAcademicRecordSerializer(record)
+#         return Response(serializer.data)

@@ -39,6 +39,7 @@ import ResetPassword from './components/ResetPassword';
 import ClassList from './pages/school/ClassList';
 import ClassDetail from './pages/school/ClassDetail';
 import CreateClass from './pages/school/CreateClass';
+import SubjectList from './pages/school/SubjectList';
 
 
 function App() {
@@ -91,6 +92,7 @@ function App() {
         <Route path="/school-classes"          element={<SchoolRoute><ClassList /></SchoolRoute>} />
         <Route path="/school-classes/create"   element={<SchoolRoute><CreateClass /></SchoolRoute>} />
         <Route path="/school-classes/:id"      element={<SchoolRoute><ClassDetail /></SchoolRoute>} />
+        <Route path="/school-subjects" element={<SchoolRoute> <SubjectList /> </SchoolRoute>} />
 
 
 

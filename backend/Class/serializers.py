@@ -129,68 +129,68 @@ class AssignTeacherSerializer(serializers.Serializer):
 
 
 
-class AcademicRecordClassroomSerializer(serializers.ModelSerializer):
-    """Minimal classroom info embedded inside academic record."""
-    class_teacher_name = serializers.SerializerMethodField()
+# class AcademicRecordClassroomSerializer(serializers.ModelSerializer):
+#     """Minimal classroom info embedded inside academic record."""
+#     class_teacher_name = serializers.SerializerMethodField()
 
-    class Meta:
-        model  = ClassRoom
-        fields = ['id', 'name', 'section', 'academic_year', 'class_teacher_name']
+#     class Meta:
+#         model  = ClassRoom
+#         fields = ['id', 'name', 'section', 'academic_year', 'class_teacher_name']
 
-    def get_class_teacher_name(self, obj):
-        if obj.class_teacher:
-            return obj.class_teacher.user.fullname
-        return None
-
-
-
-class StudentAcademicRecordSerializer(serializers.ModelSerializer):
-    """
-    Full academic record — used in student profile history
-    and school/teacher views.
-    """
-    classroom     = AcademicRecordClassroomSerializer(read_only=True)
-    student_name  = serializers.CharField(source='student.user.fullname', read_only=True)
-    admission_number = serializers.CharField(source='student.admission_number', read_only=True)
-
-    class Meta:
-        model  = StudentAcademicRecord
-        fields = [
-            'id', 'student_name', 'admission_number',
-            'classroom', 'academic_year',
-            'roll_number', 'is_current', 'promoted',
-            'remarks', 'created_at',
-        ]
-
-
-class StudentAcademicRecordListSerializer(serializers.ModelSerializer):
-    """
-    Lightweight — used in lists (e.g. class roster with year info).
-    No nested student — the student is already known from context.
-    """
-    classroom = AcademicRecordClassroomSerializer(read_only=True)
-
-    class Meta:
-        model  = StudentAcademicRecord
-        fields = [
-            'id', 'classroom', 'academic_year',
-            'roll_number', 'is_current', 'promoted', 'remarks',
-        ]
-
-
-class PromoteStudentsSerializer(serializers.Serializer):
-
-    student_ids = serializers.ListField(child=serializers.IntegerField(),min_length=1)
-    target_class_id = serializers.IntegerField()
-    promoted = serializers.BooleanField(default=True)
-    remarks = serializers.CharField(required=False,allow_blank=True,default='')
+#     def get_class_teacher_name(self, obj):
+#         if obj.class_teacher:
+#             return obj.class_teacher.user.fullname
+#         return None
 
 
 
-class UpdateAcademicRecordSerializer(serializers.ModelSerializer):
-    """For updating roll number or remarks on an existing record."""
-    class Meta:
-        model  = StudentAcademicRecord
-        fields = ['roll_number', 'remarks']
+# class StudentAcademicRecordSerializer(serializers.ModelSerializer):
+#     """
+#     Full academic record — used in student profile history
+#     and school/teacher views.
+#     """
+#     classroom     = AcademicRecordClassroomSerializer(read_only=True)
+#     student_name  = serializers.CharField(source='student.user.fullname', read_only=True)
+#     admission_number = serializers.CharField(source='student.admission_number', read_only=True)
+
+#     class Meta:
+#         model  = StudentAcademicRecord
+#         fields = [
+#             'id', 'student_name', 'admission_number',
+#             'classroom', 'academic_year',
+#             'roll_number', 'is_current', 'promoted',
+#             'remarks', 'created_at',
+#         ]
+
+
+# class StudentAcademicRecordListSerializer(serializers.ModelSerializer):
+#     """
+#     Lightweight — used in lists (e.g. class roster with year info).
+#     No nested student — the student is already known from context.
+#     """
+#     classroom = AcademicRecordClassroomSerializer(read_only=True)
+
+#     class Meta:
+#         model  = StudentAcademicRecord
+#         fields = [
+#             'id', 'classroom', 'academic_year',
+#             'roll_number', 'is_current', 'promoted', 'remarks',
+#         ]
+
+
+# class PromoteStudentsSerializer(serializers.Serializer):
+
+#     student_ids = serializers.ListField(child=serializers.IntegerField(),min_length=1)
+#     target_class_id = serializers.IntegerField()
+#     promoted = serializers.BooleanField(default=True)
+#     remarks = serializers.CharField(required=False,allow_blank=True,default='')
+
+
+
+# class UpdateAcademicRecordSerializer(serializers.ModelSerializer):
+#     """For updating roll number or remarks on an existing record."""
+#     class Meta:
+#         model  = StudentAcademicRecord
+#         fields = ['roll_number', 'remarks']
 
 

@@ -8,38 +8,62 @@ const PlusIcon      = ({ size = 15 }) => <svg width={size} height={size} viewBox
 const XIcon         = ({ size = 14 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 const TrashIcon     = ({ size = 14 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>;
 const SearchIcon    = ({ size = 14 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+const BookIcon      = ({ size = 15 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
+
+const SUBJECT_COLORS = [
+  "bg-violet-100 text-violet-700 border-violet-200",
+  "bg-blue-100 text-blue-700 border-blue-200",
+  "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "bg-amber-100 text-amber-700 border-amber-200",
+  "bg-rose-100 text-rose-700 border-rose-200",
+  "bg-indigo-100 text-indigo-700 border-indigo-200",
+  "bg-teal-100 text-teal-700 border-teal-200",
+];
 
 export default function ClassDetail() {
   const { id }   = useParams();
   const navigate = useNavigate();
 
-  const [cls, setCls]               = useState(null);
-  const [loading, setLoading]       = useState(true);
+  const [cls, setCls]         = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Assign students
-  const [unassigned, setUnassigned]     = useState([]);
-  const [studentSearch, setStudentSearch] = useState("");
+  // ── Assign students ──
+  const [unassigned, setUnassigned]             = useState([]);
+  const [studentSearch, setStudentSearch]       = useState("");
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [assigningStudents, setAssigningStudents] = useState(false);
-  const [showStudentPanel, setShowStudentPanel]   = useState(false);
+  const [showStudentPanel, setShowStudentPanel] = useState(false);
 
-  // Assign teacher
-  const [availableTeachers, setAvailableTeachers]   = useState([]);
-  const [selectedTeacher, setSelectedTeacher]       = useState("");
-  const [assigningTeacher, setAssigningTeacher]     = useState(false);
-  const [showTeacherPanel, setShowTeacherPanel]     = useState(false);
+  // ── Class teacher ──
+  const [availableTeachers, setAvailableTeachers] = useState([]);
+  const [selectedTeacher, setSelectedTeacher]     = useState("");
+  const [assigningTeacher, setAssigningTeacher]   = useState(false);
+  const [showTeacherPanel, setShowTeacherPanel]   = useState(false);
 
-  // Remove student confirm
+  // ── Teaching assignments ──
+  const [assignments, setAssignments]           = useState([]);
+  const [showAssignPanel, setShowAssignPanel]   = useState(false);
+  const [allTeachers, setAllTeachers]           = useState([]);
+  const [allSubjects, setAllSubjects]           = useState([]);
+  const [newAssignTeacher, setNewAssignTeacher] = useState("");
+  const [newAssignSubject, setNewAssignSubject] = useState("");
+  const [creatingAssign, setCreatingAssign]     = useState(false);
+  const [assignError, setAssignError]           = useState("");
+  const [removeAssignTarget, setRemoveAssignTarget] = useState(null);
+  const [removingAssign, setRemovingAssign]     = useState(false);
+
+  // ── Modals ──
   const [removeTarget, setRemoveTarget] = useState(null);
   const [removing, setRemoving]         = useState(false);
-
-  // Delete class confirm
   const [showDelete, setShowDelete]     = useState(false);
   const [deleting, setDeleting]         = useState(false);
 
-  const [toast, setToast]               = useState(null);
+  const [toast, setToast] = useState(null);
 
-  useEffect(() => { fetchClass(); }, []);
+  useEffect(() => {
+    fetchClass();
+    fetchAssignments();
+  }, []);
 
   const fetchClass = async () => {
     try {
@@ -49,11 +73,19 @@ export default function ClassDetail() {
     finally { setLoading(false); }
   };
 
+  const fetchAssignments = async () => {
+    try {
+      const res = await api.get(`Subject_teacher/school-classes/${id}/assignments/`);
+      setAssignments(res.data);
+    } catch { console.error("Failed to load assignments"); }
+  };
+
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
+  // ── Students ──
   const openStudentPanel = async () => {
     try {
       const res = await api.get("Class/school-students/unassigned/");
@@ -64,25 +96,15 @@ export default function ClassDetail() {
     } catch { showToast("Failed to load unassigned students.", "error"); }
   };
 
-  const openTeacherPanel = async () => {
-    try {
-      const res = await api.get("Class/school-teachers/available/");
-      setAvailableTeachers(res.data);
-      setSelectedTeacher(cls?.class_teacher?.id?.toString() || "");
-      setShowTeacherPanel(true);
-    } catch { showToast("Failed to load teachers.", "error"); }
-  };
-
-  const toggleStudentSelect = (student) => {
+  const toggleStudentSelect = (student) =>
     setSelectedStudents(prev =>
       prev.find(s => s.id === student.id)
         ? prev.filter(s => s.id !== student.id)
         : [...prev, student]
     );
-  };
 
   const handleAssignStudents = async () => {
-    if (selectedStudents.length === 0) return;
+    if (!selectedStudents.length) return;
     setAssigningStudents(true);
     try {
       const res = await api.post(`Class/school-classes/${id}/assign-students/`, {
@@ -110,6 +132,16 @@ export default function ClassDetail() {
     finally { setRemoving(false); }
   };
 
+  // ── Class teacher ──
+  const openTeacherPanel = async () => {
+    try {
+      const res = await api.get("Class/school-teachers/available/");
+      setAvailableTeachers(res.data);
+      setSelectedTeacher(cls?.class_teacher?.id?.toString() || "");
+      setShowTeacherPanel(true);
+    } catch { showToast("Failed to load teachers.", "error"); }
+  };
+
   const handleAssignTeacher = async () => {
     setAssigningTeacher(true);
     try {
@@ -124,6 +156,61 @@ export default function ClassDetail() {
     } finally { setAssigningTeacher(false); }
   };
 
+  // ── Teaching assignments ──
+  const openAssignPanel = async () => {
+    setAssignError("");
+    setNewAssignTeacher("");
+    setNewAssignSubject("");
+    try {
+      const [teacherRes, subjectRes] = await Promise.all([
+        api.get("Profile/school-teachers/list/"),   // all teachers in school
+        api.get("Subject_teacher/subjects/"),
+      ]);
+      setAllTeachers(teacherRes.data);
+      setAllSubjects(subjectRes.data);
+      setShowAssignPanel(true);
+    } catch { showToast("Failed to load data.", "error"); }
+  };
+
+  const handleCreateAssignment = async () => {
+    if (!newAssignTeacher || !newAssignSubject) {
+      setAssignError("Please select both a teacher and a subject.");
+      return;
+    }
+    setCreatingAssign(true);
+    setAssignError("");
+    try {
+      await api.post("Subject_teacher/teaching-assignments/", {
+        teacher_id:    parseInt(newAssignTeacher),
+        classroom_id:  parseInt(id),
+        subject_id:    parseInt(newAssignSubject),
+        academic_year: cls.academic_year,
+      });
+      await fetchAssignments();
+      setNewAssignTeacher("");
+      setNewAssignSubject("");
+      showToast("Teaching assignment added.");
+    } catch (err) {
+      const data = err.response?.data;
+      const msg  = data?.non_field_errors?.[0] || data?.error ||
+                   (data && Object.values(data)[0]) || "Failed to create assignment.";
+      setAssignError(Array.isArray(msg) ? msg[0] : msg);
+    } finally { setCreatingAssign(false); }
+  };
+
+  const handleRemoveAssignment = async () => {
+    if (!removeAssignTarget) return;
+    setRemovingAssign(true);
+    try {
+      await api.delete(`Subject_teacher/teaching-assignments/${removeAssignTarget.id}/`);
+      setAssignments(prev => prev.filter(a => a.id !== removeAssignTarget.id));
+      setRemoveAssignTarget(null);
+      showToast("Assignment removed.");
+    } catch { showToast("Failed to remove assignment.", "error"); }
+    finally { setRemovingAssign(false); }
+  };
+
+  // ── Delete class ──
   const handleDeleteClass = async () => {
     setDeleting(true);
     try {
@@ -145,7 +232,6 @@ export default function ClassDetail() {
       </div>
     </Layout>
   );
-
   if (!cls) return null;
 
   const teacherInitials = cls.class_teacher?.fullname?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
@@ -156,9 +242,7 @@ export default function ClassDetail() {
       {toast && (
         <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white ${
           toast.type === "success" ? "bg-gray-900" : "bg-red-500"
-        }`}>
-          {toast.message}
-        </div>
+        }`}>{toast.message}</div>
       )}
 
       {/* Remove student modal */}
@@ -174,6 +258,26 @@ export default function ClassDetail() {
               <button onClick={handleRemoveStudent} disabled={removing}
                 className="flex-1 py-2.5 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600 disabled:opacity-50">
                 {removing ? "Removing..." : "Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove assignment modal */}
+      {removeAssignTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Assignment?</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              <strong>{removeAssignTarget.teacher?.fullname}</strong> will no longer teach{" "}
+              <strong>{removeAssignTarget.subject?.name}</strong> to this class.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setRemoveAssignTarget(null)} className="flex-1 py-2.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={handleRemoveAssignment} disabled={removingAssign}
+                className="flex-1 py-2.5 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600 disabled:opacity-50">
+                {removingAssign ? "Removing..." : "Remove"}
               </button>
             </div>
           </div>
@@ -201,7 +305,6 @@ export default function ClassDetail() {
       )}
 
       <div className="min-h-screen bg-gray-50">
-
         {/* Header */}
         <div className="bg-white border-b border-gray-100">
           <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between">
@@ -218,7 +321,7 @@ export default function ClassDetail() {
         <div className="max-w-6xl mx-auto px-8 py-10">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-            {/* LEFT — Class identity + teacher */}
+            {/* ── LEFT column ── */}
             <div className="space-y-6">
 
               {/* Hero card */}
@@ -233,14 +336,20 @@ export default function ClassDetail() {
                       Section {cls.section}
                     </span>
                   )}
-                  <div className="mt-5 pt-5 border-t border-white/10">
-                    <p className="text-3xl font-bold text-white">{cls.student_count}</p>
-                    <p className="text-gray-400 text-sm">Students enrolled</p>
+                  <div className="mt-5 pt-5 border-t border-white/10 grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-2xl font-bold text-white">{cls.total_students}</p>
+                      <p className="text-gray-400 text-xs">Students</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-white">{assignments.length}</p>
+                      <p className="text-gray-400 text-xs">Subjects</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Class teacher */}
+              {/* Class teacher card */}
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-sm font-bold text-gray-900">Class Teacher</h3>
@@ -249,7 +358,6 @@ export default function ClassDetail() {
                     {cls.class_teacher ? "Change" : "Assign"}
                   </button>
                 </div>
-
                 {cls.class_teacher ? (
                   <div className="flex items-center gap-3">
                     {cls.class_teacher.profile_picture
@@ -259,9 +367,6 @@ export default function ClassDetail() {
                     <div>
                       <p className="text-sm font-bold text-gray-900">{cls.class_teacher.fullname}</p>
                       <p className="text-xs text-gray-400">{cls.class_teacher.email}</p>
-                      {cls.class_teacher.subject && (
-                        <p className="text-xs text-gray-400 mt-0.5">{cls.class_teacher.subject}</p>
-                      )}
                     </div>
                   </div>
                 ) : (
@@ -274,9 +379,63 @@ export default function ClassDetail() {
                   </div>
                 )}
               </div>
+
+              {/* ── Subject Teachers card (NEW) ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <BookIcon className="text-gray-400" />
+                    <h3 className="text-sm font-bold text-gray-900">Subject Teachers</h3>
+                  </div>
+                  <button onClick={openAssignPanel}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors">
+                    <PlusIcon size={12} /> Assign
+                  </button>
+                </div>
+
+                {assignments.length === 0 ? (
+                  <div className="text-center py-5 border-2 border-dashed border-gray-200 rounded-xl">
+                    <p className="text-sm text-gray-400 font-medium">No assignments yet</p>
+                    <button onClick={openAssignPanel}
+                      className="mt-2 text-xs text-gray-900 font-bold underline hover:no-underline">
+                      Assign a subject teacher
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {assignments.map((a, i) => {
+                      const color    = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+                      const initials = a.teacher?.fullname?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                      return (
+                        <div key={a.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 group hover:border-gray-200 transition-all">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {a.teacher?.profile_picture
+                              ? <img src={a.teacher.profile_picture} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                              : <div className="w-7 h-7 rounded-full bg-gray-900 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">{initials}</div>
+                            }
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 truncate">{a.teacher?.fullname}</p>
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${color}`}>
+                                {a.subject?.name}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setRemoveAssignTarget(a)}
+                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                          >
+                            <XIcon size={12} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* RIGHT — Student roster */}
+            {/* ── RIGHT column — Student Roster ── */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-2xl border border-gray-100">
                 <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
@@ -307,7 +466,8 @@ export default function ClassDetail() {
                     {cls.students.map((student, i) => {
                       const initials = student.fullname?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
                       return (
-                        <div key={student.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 transition-colors group">
+                        <div key={student.id}
+                          className="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 transition-colors group">
                           <div className="flex items-center gap-3">
                             <span className="text-xs text-gray-300 w-5 text-right flex-shrink-0">{i + 1}</span>
                             {student.profile_picture
@@ -340,7 +500,11 @@ export default function ClassDetail() {
         </div>
       </div>
 
-      {/* ── Add Students Slide Panel ── */}
+      {/* ════════════════════════════════════
+          SLIDE PANELS
+      ════════════════════════════════════ */}
+
+      {/* Add Students */}
       {showStudentPanel && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/40" onClick={() => setShowStudentPanel(false)} />
@@ -350,79 +514,51 @@ export default function ClassDetail() {
                 <h3 className="text-base font-bold text-gray-900">Add Students</h3>
                 <p className="text-xs text-gray-400 mt-0.5">{unassigned.length} unassigned students available</p>
               </div>
-              <button onClick={() => setShowStudentPanel(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <XIcon size={16} />
-              </button>
+              <button onClick={() => setShowStudentPanel(false)} className="p-2 hover:bg-gray-100 rounded-lg"><XIcon size={16} /></button>
             </div>
-
-            {/* Search */}
             <div className="px-6 py-4 border-b border-gray-100">
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <SearchIcon className="text-gray-400" />
-                </div>
-                <input
-                  value={studentSearch}
-                  onChange={e => setStudentSearch(e.target.value)}
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon className="text-gray-400" /></div>
+                <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
                   placeholder="Search by name or admission number..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                />
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
               </div>
             </div>
-
-            {/* Selected strip */}
             {selectedStudents.length > 0 && (
               <div className="px-6 py-3 bg-gray-900 flex items-center justify-between">
                 <p className="text-white text-sm font-semibold">{selectedStudents.length} selected</p>
                 <button onClick={() => setSelectedStudents([])} className="text-gray-400 text-xs hover:text-white">Clear</button>
               </div>
             )}
-
-            {/* List */}
             <div className="flex-1 overflow-y-auto">
               {filteredUnassigned.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-400 text-sm">
-                    {studentSearch ? "No students match your search" : "All students are already assigned to classes"}
-                  </p>
+                  <p className="text-gray-400 text-sm">{studentSearch ? "No students match your search" : "All students are already assigned to classes"}</p>
                 </div>
-              ) : (
-                filteredUnassigned.map(student => {
-                  const selected = selectedStudents.find(s => s.id === student.id);
-                  const initials = student.fullname?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-                  return (
-                    <div key={student.id}
-                      onClick={() => toggleStudentSelect(student)}
-                      className={`flex items-center gap-3 px-6 py-3.5 cursor-pointer transition-colors border-b border-gray-50 ${
-                        selected ? "bg-gray-50" : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                        selected ? "bg-gray-900 border-gray-900" : "border-gray-300"
-                      }`}>
-                        {selected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                      </div>
-                      {student.profile_picture
-                        ? <img src={student.profile_picture} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
-                        : <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-bold flex-shrink-0">{initials}</div>
-                      }
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{student.fullname}</p>
-                        <p className="text-xs text-gray-400">{student.admission_number}</p>
-                      </div>
+              ) : filteredUnassigned.map(student => {
+                const selected = selectedStudents.find(s => s.id === student.id);
+                const initials = student.fullname?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                return (
+                  <div key={student.id} onClick={() => toggleStudentSelect(student)}
+                    className={`flex items-center gap-3 px-6 py-3.5 cursor-pointer border-b border-gray-50 transition-colors ${selected ? "bg-gray-50" : "hover:bg-gray-50"}`}>
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected ? "bg-gray-900 border-gray-900" : "border-gray-300"}`}>
+                      {selected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
                     </div>
-                  );
-                })
-              )}
+                    {student.profile_picture
+                      ? <img src={student.profile_picture} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                      : <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-bold flex-shrink-0">{initials}</div>
+                    }
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{student.fullname}</p>
+                      <p className="text-xs text-gray-400">{student.admission_number}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Add button */}
             <div className="px-6 py-5 border-t border-gray-100">
-              <button
-                onClick={handleAssignStudents}
-                disabled={selectedStudents.length === 0 || assigningStudents}
-                className="w-full py-3 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
+              <button onClick={handleAssignStudents} disabled={!selectedStudents.length || assigningStudents}
+                className="w-full py-3 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
                 {assigningStudents
                   ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Adding...</>
                   : `Add ${selectedStudents.length > 0 ? selectedStudents.length + " " : ""}Student${selectedStudents.length !== 1 ? "s" : ""} to Class`
@@ -433,96 +569,170 @@ export default function ClassDetail() {
         </div>
       )}
 
-      {/* ── Assign Teacher Slide Panel ── */}
+      {/* Assign Class Teacher */}
       {showTeacherPanel && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/40" onClick={() => setShowTeacherPanel(false)} />
           <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl">
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
               <h3 className="text-base font-bold text-gray-900">Assign Class Teacher</h3>
-              <button onClick={() => setShowTeacherPanel(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <XIcon size={16} />
-              </button>
+              <button onClick={() => setShowTeacherPanel(false)} className="p-2 hover:bg-gray-100 rounded-lg"><XIcon size={16} /></button>
             </div>
-
             <div className="flex-1 overflow-y-auto p-6">
-              {/* Remove option */}
-              <div
-                onClick={() => setSelectedTeacher("")}
-                className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer mb-3 border-2 transition-all ${
-                  selectedTeacher === "" ? "border-gray-900 bg-gray-50" : "border-transparent hover:bg-gray-50"
-                }`}
-              >
+              <div onClick={() => setSelectedTeacher("")}
+                className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer mb-3 border-2 transition-all ${selectedTeacher === "" ? "border-gray-900 bg-gray-50" : "border-transparent hover:bg-gray-50"}`}>
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedTeacher === "" ? "border-gray-900" : "border-gray-300"}`}>
                   {selectedTeacher === "" && <div className="w-2.5 h-2.5 bg-gray-900 rounded-full" />}
                 </div>
                 <p className="text-sm font-medium text-gray-500 italic">No class teacher (remove current)</p>
               </div>
-
-              {availableTeachers.length === 0 && !cls.class_teacher ? (
-                <p className="text-sm text-gray-400 text-center py-8">No available teachers to assign.</p>
-              ) : (
-                <>
-                  {/* Show current teacher even if not in "available" list */}
-                  {cls.class_teacher && (
-                    <div
-                      onClick={() => setSelectedTeacher(cls.class_teacher.id.toString())}
-                      className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer mb-2 border-2 transition-all ${
-                        selectedTeacher === cls.class_teacher.id.toString() ? "border-gray-900 bg-gray-50" : "border-transparent hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedTeacher === cls.class_teacher.id.toString() ? "border-gray-900" : "border-gray-300"}`}>
-                        {selectedTeacher === cls.class_teacher.id.toString() && <div className="w-2.5 h-2.5 bg-gray-900 rounded-full" />}
-                      </div>
-                      {cls.class_teacher.profile_picture
-                        ? <img src={cls.class_teacher.profile_picture} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
-                        : <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{teacherInitials}</div>
-                      }
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{cls.class_teacher.fullname}</p>
-                        <p className="text-xs text-gray-400">{cls.class_teacher.email}</p>
-                        <span className="text-xs text-amber-600 font-semibold">Current teacher</span>
-                      </div>
+              {cls.class_teacher && (
+                <div onClick={() => setSelectedTeacher(cls.class_teacher.id.toString())}
+                  className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer mb-2 border-2 transition-all ${selectedTeacher === cls.class_teacher.id.toString() ? "border-gray-900 bg-gray-50" : "border-transparent hover:bg-gray-50"}`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedTeacher === cls.class_teacher.id.toString() ? "border-gray-900" : "border-gray-300"}`}>
+                    {selectedTeacher === cls.class_teacher.id.toString() && <div className="w-2.5 h-2.5 bg-gray-900 rounded-full" />}
+                  </div>
+                  {cls.class_teacher.profile_picture
+                    ? <img src={cls.class_teacher.profile_picture} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                    : <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{teacherInitials}</div>
+                  }
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{cls.class_teacher.fullname}</p>
+                    <p className="text-xs text-gray-400">{cls.class_teacher.email}</p>
+                    <span className="text-xs text-amber-600 font-semibold">Current teacher</span>
+                  </div>
+                </div>
+              )}
+              {availableTeachers.map(t => {
+                const tInitials  = t.fullname?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                const isSelected = selectedTeacher === t.id.toString();
+                return (
+                  <div key={t.id} onClick={() => setSelectedTeacher(t.id.toString())}
+                    className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer mb-2 border-2 transition-all ${isSelected ? "border-gray-900 bg-gray-50" : "border-transparent hover:bg-gray-50"}`}>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? "border-gray-900" : "border-gray-300"}`}>
+                      {isSelected && <div className="w-2.5 h-2.5 bg-gray-900 rounded-full" />}
                     </div>
-                  )}
+                    {t.profile_picture ? <img src={t.profile_picture} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                      : <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-bold flex-shrink-0">{tInitials}</div>
+                    }
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{t.fullname}</p>
+                      <p className="text-xs text-gray-400">{t.email}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-6 py-5 border-t border-gray-100">
+              <button onClick={handleAssignTeacher} disabled={assigningTeacher}
+                className="w-full py-3 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                {assigningTeacher ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Saving...</> : "Confirm Assignment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                  {availableTeachers.map(t => {
-                    const tInitials = t.fullname?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-                    const isSelected = selectedTeacher === t.id.toString();
-                    return (
-                      <div key={t.id}
-                        onClick={() => setSelectedTeacher(t.id.toString())}
-                        className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer mb-2 border-2 transition-all ${
-                          isSelected ? "border-gray-900 bg-gray-50" : "border-transparent hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? "border-gray-900" : "border-gray-300"}`}>
-                          {isSelected && <div className="w-2.5 h-2.5 bg-gray-900 rounded-full" />}
+      {/* ── Assign Subject Teacher Panel (NEW) ── */}
+      {showAssignPanel && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/40" onClick={() => setShowAssignPanel(false)} />
+          <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Assign Subject Teacher</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Class {cls.name}{cls.section ? ` - ${cls.section}` : ""} · {cls.academic_year}
+                </p>
+              </div>
+              <button onClick={() => setShowAssignPanel(false)} className="p-2 hover:bg-gray-100 rounded-lg"><XIcon size={16} /></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+              {/* Subject picker */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Subject</label>
+                {allSubjects.length === 0 ? (
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                    <p className="text-xs text-amber-700">
+                      No subjects found.{" "}
+                      <Link to="/school-subjects" className="font-bold underline">Add subjects first →</Link>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {allSubjects.map((s, i) => {
+                      const color      = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+                      const isSelected = newAssignSubject === s.id.toString();
+                      return (
+                        <button key={s.id}
+                          onClick={() => { setNewAssignSubject(s.id.toString()); setAssignError(""); }}
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${
+                            isSelected ? "border-gray-900 bg-gray-50" : `border ${color} hover:border-gray-300`
+                          }`}
+                        >
+                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 ${color}`}>
+                            {s.name.charAt(0)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-gray-900 truncate">{s.name}</p>
+                            {s.code && <p className="text-[10px] text-gray-400">{s.code}</p>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Teacher picker */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Teacher</label>
+                {allTeachers.length === 0 ? (
+                  <p className="text-xs text-gray-400">No teachers found in your school.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {allTeachers.map(t => {
+                      const tInitials  = t.fullname?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                      const isSelected = newAssignTeacher === t.id.toString();
+                      return (
+                        <div key={t.id}
+                          onClick={() => { setNewAssignTeacher(t.id.toString()); setAssignError(""); }}
+                          className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border-2 transition-all ${
+                            isSelected ? "border-gray-900 bg-gray-50" : "border-transparent hover:bg-gray-50 border-gray-100"
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${isSelected ? "border-gray-900" : "border-gray-300"}`}>
+                            {isSelected && <div className="w-2 h-2 bg-gray-900 rounded-full" />}
+                          </div>
+                          {t.profile_picture
+                            ? <img src={t.profile_picture} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                            : <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-bold flex-shrink-0">{tInitials}</div>
+                          }
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{t.fullname}</p>
+                            <p className="text-xs text-gray-400 truncate">{t.email}</p>
+                          </div>
                         </div>
-                        {t.profile_picture
-                          ? <img src={t.profile_picture} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
-                          : <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-bold flex-shrink-0">{tInitials}</div>
-                        }
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">{t.fullname}</p>
-                          <p className="text-xs text-gray-400">{t.email}</p>
-                          {t.subject && <p className="text-xs text-gray-400">{t.subject}</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {assignError && (
+                <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                  <p className="text-xs text-red-600 font-medium">{assignError}</p>
+                </div>
               )}
             </div>
 
             <div className="px-6 py-5 border-t border-gray-100">
-              <button
-                onClick={handleAssignTeacher}
-                disabled={assigningTeacher}
-                className="w-full py-3 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-              >
-                {assigningTeacher
-                  ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Saving...</>
+              <button onClick={handleCreateAssignment} disabled={creatingAssign}
+                className="w-full py-3 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                {creatingAssign
+                  ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Assigning...</>
                   : "Confirm Assignment"
                 }
               </button>
