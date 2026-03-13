@@ -10,10 +10,10 @@ import api from "../../api/axios";
 import ParentLayout from "./ParentLayout";
 
 const MOCK_ANNOUNCEMENTS = [
-  { id: 1, title: "Half-yearly exams start November 10",   time: "2h ago",  type: "exam" },
-  { id: 2, title: "Annual Sports Day scheduled for Dec 5", time: "1d ago",  type: "event" },
-  { id: 3, title: "Fee payment deadline: October 30",      time: "2d ago",  type: "fee" },
-  { id: 4, title: "Parent-teacher meeting on Nov 2",       time: "3d ago",  type: "meeting" },
+  { id: 1, title: "Half-yearly exams start November 10",   time: "2h ago", type: "exam" },
+  { id: 2, title: "Annual Sports Day scheduled for Dec 5", time: "1d ago", type: "event" },
+  { id: 3, title: "Fee payment deadline: October 30",      time: "2d ago", type: "fee" },
+  { id: 4, title: "Parent-teacher meeting on Nov 2",       time: "3d ago", type: "meeting" },
 ];
 
 const TYPE_STYLES = {
@@ -31,6 +31,26 @@ const TODAY_SCHEDULE = [
   { time: "13:00", subject: "Chemistry",    teacher: "Mr. Kumar",  color: "#ef4444" },
 ];
 
+// ── Attendance mini ring ──
+function MiniRing({ percent }) {
+  const r    = 20;
+  const circ = 2 * Math.PI * r;
+  const fill = (percent / 100) * circ;
+  const color = percent >= 75 ? "#10b981" : percent >= 50 ? "#f59e0b" : "#ef4444";
+  return (
+    <div className="relative w-12 h-12 flex-shrink-0">
+      <svg width="48" height="48" viewBox="0 0 48 48" className="-rotate-90">
+        <circle cx="24" cy="24" r={r} fill="none" stroke="#f3f4f6" strokeWidth="5" />
+        <circle cx="24" cy="24" r={r} fill="none" stroke={color} strokeWidth="5"
+          strokeDasharray={`${fill} ${circ}`} strokeLinecap="round" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <p className="text-[9px] font-black text-gray-900">{percent}%</p>
+      </div>
+    </div>
+  );
+}
+
 export default function ParentDashboard() {
   const user = useSelector((state) => state.auth.user);
 
@@ -41,6 +61,10 @@ export default function ParentDashboard() {
   const [loading, setLoading]             = useState(true);
   const [time, setTime]                   = useState(new Date());
 
+  // ── Attendance state ──
+  const [attendance, setAttendance]       = useState(null);
+  const [attLoading, setAttLoading]       = useState(false);
+
   useEffect(() => {
     fetchDashboard();
     const tick = setInterval(() => setTime(new Date()), 1000);
@@ -48,7 +72,10 @@ export default function ParentDashboard() {
   }, []);
 
   useEffect(() => {
-    if (selectedChild) fetchChildData(selectedChild.id);
+    if (selectedChild) {
+      fetchChildData(selectedChild.id);
+      fetchChildAttendance(selectedChild.id);
+    }
   }, [selectedChild]);
 
   const fetchDashboard = async () => {
@@ -75,6 +102,21 @@ export default function ParentDashboard() {
     }
   };
 
+  const fetchChildAttendance = async (childId) => {
+    setAttLoading(true);
+    setAttendance(null);
+    try {
+      const d     = new Date();
+      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const res   = await api.get(`/Class/attendance/students/${childId}/?month=${month}`);
+      setAttendance(res.data);
+    } catch {
+      setAttendance(null);
+    } finally {
+      setAttLoading(false);
+    }
+  };
+
   const greeting = () => {
     const h = time.getHours();
     if (h < 12) return "Good Morning";
@@ -82,13 +124,28 @@ export default function ParentDashboard() {
     return "Good Evening";
   };
 
-  const firstName = user?.fullname?.split(" ")[0] || "Parent";
+  const firstName  = user?.fullname?.split(" ")[0] || "Parent";
+  const attPercent = attendance?.summary?.attendance_percent ?? null;
+  const attColor   = attPercent !== null
+    ? attPercent >= 75 ? "#10b981" : attPercent >= 50 ? "#f59e0b" : "#ef4444"
+    : "#6366f1";
+  const attBg      = attPercent !== null
+    ? attPercent >= 75 ? "#ecfdf5" : attPercent >= 50 ? "#fffbeb" : "#fef2f2"
+    : "#eef2ff";
 
   const stats = [
-    { label: "Attendance",  value: "92%",  sub: "This month",  color: "#10b981", bg: "#ecfdf5", icon: CheckCircle, to: "/parent/attendance" },
-    { label: "Assignments", value: "8",    sub: "Pending",      color: "#f59e0b", bg: "#fffbeb", icon: BookOpen,    to: "/parent/exams" },
-    { label: "Class Rank",  value: "#3",   sub: "Out of 42",    color: "#6366f1", bg: "#eef2ff", icon: Award,       to: null },
-    { label: "Fee Status",  value: "Paid", sub: "Current term", color: "#0ea5e9", bg: "#f0f9ff", icon: CreditCard,  to: "/parent/finance" },
+    {
+      label: "Attendance",
+      value: attPercent !== null ? `${attPercent}%` : "—",
+      sub:   "This month",
+      color: attColor,
+      bg:    attBg,
+      icon:  CheckCircle,
+      to:    "/parent/attendance",
+    },
+    { label: "Assignments", value: "8",    sub: "Pending",      color: "#f59e0b", bg: "#fffbeb", icon: BookOpen,   to: "/parent/exams" },
+    { label: "Class Rank",  value: "#3",   sub: "Out of 42",    color: "#6366f1", bg: "#eef2ff", icon: Award,      to: null },
+    { label: "Fee Status",  value: "Paid", sub: "Current term", color: "#0ea5e9", bg: "#f0f9ff", icon: CreditCard, to: "/parent/finance" },
   ];
 
   return (
@@ -115,15 +172,12 @@ export default function ParentDashboard() {
             <div className="flex items-center gap-3 mb-8">
               <p className="text-sm font-medium text-gray-500">Viewing:</p>
               {children.map((child) => (
-                <button
-                  key={child.id}
-                  onClick={() => setSelectedChild(child)}
+                <button key={child.id} onClick={() => setSelectedChild(child)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
                     selectedChild?.id === child.id
                       ? "bg-gray-900 text-white border-gray-900"
                       : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-                  }`}
-                >
+                  }`}>
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                     selectedChild?.id === child.id ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
                   }`}>
@@ -157,13 +211,24 @@ export default function ParentDashboard() {
                     {childData.roll_number && (
                       <span className="text-xs text-gray-400 bg-white/10 px-3 py-1 rounded-full">Roll No. {childData.roll_number}</span>
                     )}
+                    {/* Live attendance badge */}
+                    {attPercent !== null && (
+                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                        attPercent >= 75 ? "bg-emerald-500/20 text-emerald-400" :
+                        attPercent >= 50 ? "bg-amber-500/20 text-amber-400" :
+                                           "bg-red-500/20 text-red-400"
+                      }`}>
+                        {attPercent}% attendance
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
-              <div className="hidden md:flex w-16 h-16 rounded-2xl bg-white/10 items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+              <div className="hidden md:flex w-16 h-16 rounded-2xl bg-white/10 items-center justify-center text-white text-2xl font-bold flex-shrink-0 overflow-hidden">
                 {childData?.profile_picture
-                  ? <img src={childData.profile_picture} alt="" className="w-full h-full rounded-2xl object-cover" />
-                  : (childData?.fullname || selectedChild?.fullname || "C")?.charAt(0).toUpperCase()}
+                  ? <img src={childData.profile_picture} alt="" className="w-full h-full object-cover" />
+                  : (childData?.fullname || selectedChild?.fullname || "C")?.charAt(0).toUpperCase()
+                }
               </div>
             </div>
           </div>
@@ -179,7 +244,7 @@ export default function ParentDashboard() {
                     </div>
                     <span className="text-xs text-gray-400">{sub}</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
+                  <p className="text-2xl font-bold text-gray-900 mb-1" style={label === "Attendance" && attPercent !== null ? { color } : {}}>{value}</p>
                   <p className="text-sm text-gray-500">{label}</p>
                 </div>
               );
@@ -190,6 +255,109 @@ export default function ParentDashboard() {
           {/* Main grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+
+              {/* ── Attendance card (NEW) ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">
+                      {selectedChild?.fullname ? `${selectedChild.fullname.split(" ")[0]}'s Attendance` : "Attendance"}
+                    </h3>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+                    </p>
+                  </div>
+                  <Link to="/parent/attendance" className="text-xs font-semibold text-gray-500 hover:text-gray-900 flex items-center gap-1 transition-colors">
+                    Full history <ChevronRight size={14} />
+                  </Link>
+                </div>
+
+                {attLoading ? (
+                  <div className="flex items-center gap-2 py-4">
+                    <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+                    <p className="text-sm text-gray-400">Loading attendance...</p>
+                  </div>
+                ) : !attendance ? (
+                  <p className="text-sm text-gray-400 py-4">No attendance data available for this month.</p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-6 mb-5">
+                      <MiniRing percent={attPercent} />
+                      <div className="flex gap-4 flex-1">
+                        <div className="flex-1 bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+                          <p className="text-xl font-black text-emerald-600">{attendance.summary.present}</p>
+                          <p className="text-xs text-emerald-500 font-medium">Present</p>
+                        </div>
+                        <div className="flex-1 bg-red-50 border border-red-100 rounded-xl p-3 text-center">
+                          <p className="text-xl font-black text-red-600">{attendance.summary.absent}</p>
+                          <p className="text-xs text-red-500 font-medium">Absent</p>
+                        </div>
+                        <div className="flex-1 bg-amber-50 border border-amber-100 rounded-xl p-3 text-center">
+                          <p className="text-xl font-black text-amber-600">{attendance.summary.late}</p>
+                          <p className="text-xs text-amber-500 font-medium">Late</p>
+                        </div>
+                        <div className="flex-1 bg-gray-50 border border-gray-100 rounded-xl p-3 text-center">
+                          <p className="text-xl font-black text-gray-700">{attendance.summary.total_days}</p>
+                          <p className="text-xs text-gray-400 font-medium">Total Days</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Low attendance alert */}
+                    {attPercent < 75 && (
+                      <div className="flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-100 rounded-xl mb-4">
+                        <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-red-600">
+                          Attendance is below 75%. Please ensure{" "}
+                          <strong>{selectedChild?.fullname?.split(" ")[0] || "your child"}</strong>{" "}
+                          attends school regularly.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Recent absent days */}
+                    {attendance.records?.filter(r => r.status !== "present").length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Recent Absences / Late</p>
+                        <div className="space-y-1.5">
+                          {attendance.records
+                            .filter(r => r.status !== "present")
+                            .slice(0, 5)
+                            .map(record => (
+                              <div key={record.id}
+                                className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                                <div className="flex items-center gap-2.5">
+                                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                    record.status === "absent" ? "bg-red-500" : "bg-amber-500"
+                                  }`} />
+                                  <p className="text-xs font-medium text-gray-700">
+                                    {new Date(record.date + "T00:00:00").toLocaleDateString("en-IN", {
+                                      weekday: "short", day: "numeric", month: "short"
+                                    })}
+                                  </p>
+                                  {record.student?.note && (
+                                    <p className="text-xs text-gray-400 italic">"{record.student.note}"</p>
+                                  )}
+                                </div>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded capitalize ${
+                                  record.status === "absent" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"
+                                }`}>
+                                  {record.status}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {attendance.records?.filter(r => r.status !== "present").length === 0 && (
+                      <div className="text-center py-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                        <p className="text-emerald-600 font-semibold text-sm">🎉 Perfect attendance this month!</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
 
               {/* Timetable */}
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
@@ -310,10 +478,10 @@ export default function ParentDashboard() {
                 <h3 className="text-base font-bold text-gray-900 mb-5">Upcoming Events</h3>
                 <div className="space-y-3">
                   {[
-                    { date: "10", month: "NOV", title: "Half-yearly Exams",     color: "#ef4444" },
-                    { date: "02", month: "NOV", title: "Parent-Teacher Meeting", color: "#f59e0b" },
-                    { date: "30", month: "OCT", title: "Fee Payment Deadline",   color: "#6366f1" },
-                    { date: "05", month: "DEC", title: "Annual Sports Day",      color: "#10b981" },
+                    { date: "10", month: "NOV", title: "Half-yearly Exams",      color: "#ef4444" },
+                    { date: "02", month: "NOV", title: "Parent-Teacher Meeting",  color: "#f59e0b" },
+                    { date: "30", month: "OCT", title: "Fee Payment Deadline",    color: "#6366f1" },
+                    { date: "05", month: "DEC", title: "Annual Sports Day",       color: "#10b981" },
                   ].map(({ date, month, title, color }) => (
                     <div key={title} className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0" style={{ background: color }}>

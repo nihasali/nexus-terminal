@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from Users.models import User
 from Profile.models import TeacherProfile,StudentProfile,StudentDocument,ParentProfile
-from .models import ClassRoom
+from .models import ClassRoom,StudentAcademicRecord,Attendance,AttendanceSession
 from django.db.models import Count, Q
 
 
@@ -129,68 +129,154 @@ class AssignTeacherSerializer(serializers.Serializer):
 
 
 
-# class AcademicRecordClassroomSerializer(serializers.ModelSerializer):
-#     """Minimal classroom info embedded inside academic record."""
-#     class_teacher_name = serializers.SerializerMethodField()
+class AcademicRecordClassroomSerializer(serializers.ModelSerializer):
+    """Minimal classroom info embedded inside academic record."""
+    class_teacher_name = serializers.SerializerMethodField()
 
-#     class Meta:
-#         model  = ClassRoom
-#         fields = ['id', 'name', 'section', 'academic_year', 'class_teacher_name']
+    class Meta:
+        model  = ClassRoom
+        fields = ['id', 'name', 'section', 'academic_year', 'class_teacher_name']
 
-#     def get_class_teacher_name(self, obj):
-#         if obj.class_teacher:
-#             return obj.class_teacher.user.fullname
-#         return None
-
-
-
-# class StudentAcademicRecordSerializer(serializers.ModelSerializer):
-#     """
-#     Full academic record — used in student profile history
-#     and school/teacher views.
-#     """
-#     classroom     = AcademicRecordClassroomSerializer(read_only=True)
-#     student_name  = serializers.CharField(source='student.user.fullname', read_only=True)
-#     admission_number = serializers.CharField(source='student.admission_number', read_only=True)
-
-#     class Meta:
-#         model  = StudentAcademicRecord
-#         fields = [
-#             'id', 'student_name', 'admission_number',
-#             'classroom', 'academic_year',
-#             'roll_number', 'is_current', 'promoted',
-#             'remarks', 'created_at',
-#         ]
-
-
-# class StudentAcademicRecordListSerializer(serializers.ModelSerializer):
-#     """
-#     Lightweight — used in lists (e.g. class roster with year info).
-#     No nested student — the student is already known from context.
-#     """
-#     classroom = AcademicRecordClassroomSerializer(read_only=True)
-
-#     class Meta:
-#         model  = StudentAcademicRecord
-#         fields = [
-#             'id', 'classroom', 'academic_year',
-#             'roll_number', 'is_current', 'promoted', 'remarks',
-#         ]
-
-
-# class PromoteStudentsSerializer(serializers.Serializer):
-
-#     student_ids = serializers.ListField(child=serializers.IntegerField(),min_length=1)
-#     target_class_id = serializers.IntegerField()
-#     promoted = serializers.BooleanField(default=True)
-#     remarks = serializers.CharField(required=False,allow_blank=True,default='')
+    def get_class_teacher_name(self, obj):
+        if obj.class_teacher:
+            return obj.class_teacher.user.fullname
+        return None
 
 
 
-# class UpdateAcademicRecordSerializer(serializers.ModelSerializer):
-#     """For updating roll number or remarks on an existing record."""
-#     class Meta:
-#         model  = StudentAcademicRecord
-#         fields = ['roll_number', 'remarks']
+class StudentAcademicRecordSerializer(serializers.ModelSerializer):
+    """
+    Full academic record — used in student profile history
+    and school/teacher views.
+    """
+    classroom     = AcademicRecordClassroomSerializer(read_only=True)
+    student_name  = serializers.CharField(source='student.user.fullname', read_only=True)
+    admission_number = serializers.CharField(source='student.admission_number', read_only=True)
+
+    class Meta:
+        model  = StudentAcademicRecord
+        fields = [
+            'id', 'student_name', 'admission_number',
+            'classroom', 'academic_year',
+            'roll_number', 'is_current', 'promoted',
+            'remarks', 'created_at',
+        ]
 
 
+class StudentAcademicRecordListSerializer(serializers.ModelSerializer):
+    """
+    Lightweight — used in lists (e.g. class roster with year info).
+    No nested student — the student is already known from context.
+    """
+    classroom = AcademicRecordClassroomSerializer(read_only=True)
+
+    class Meta:
+        model  = StudentAcademicRecord
+        fields = [
+            'id', 'classroom', 'academic_year',
+            'roll_number', 'is_current', 'promoted', 'remarks',
+        ]
+
+
+class PromoteStudentsSerializer(serializers.Serializer):
+
+    student_ids = serializers.ListField(child=serializers.IntegerField(),min_length=1)
+    target_class_id = serializers.IntegerField()
+    promoted = serializers.BooleanField(default=True)
+    remarks = serializers.CharField(required=False,allow_blank=True,default='')
+
+
+
+class UpdateAcademicRecordSerializer(serializers.ModelSerializer):
+    """For updating roll number or remarks on an existing record."""
+    class Meta:
+        model  = StudentAcademicRecord
+        fields = ['roll_number', 'remarks']
+
+
+
+
+class AttendancestudentSerializer(serializers.ModelSerializer):
+
+    """used when to embed the student info to attendence sheet rows"""
+
+    fullname = serializers.CharField(source='student.user.fullname')
+    profile_picture = serializers.SerializerMethodField()
+    admission_number = serializers.CharField(source='student.admission_number')
+
+    class Meta:
+        model = StudentAcademicRecord
+        fields = ['id','fullname','admission_number','profile_picture','roll_number']
+
+    def get_profile_picture(self,obj):
+        return obj.student.user.profile_picture.url if obj.student.user.profile_picture else None
+
+
+class AttendanceRecordSerializer(serializers.ModelSerializer):
+
+    """ single attendance row - student + their status for a date """
+
+    student = AttendancestudentSerializer(source='academic_record',read_only=True)
+
+    class Meta:
+        model = Attendance
+        fields = ['id','student','date','status','note','updated_at']
+
+
+class AttendanceSheetSerializer(serializers.Serializer):
+    """
+    Used when the teacher opens the attendance sheet.
+    Returns all students in the class with their status for the date
+    (or null if not yet marked).
+    """
+    academic_record_id = serializers.IntegerField()
+    fullname           = serializers.CharField()
+    admission_number   = serializers.CharField()
+    roll_number        = serializers.CharField(allow_null=True)
+    profile_picture    = serializers.CharField(allow_null=True)
+    attendance_id      = serializers.IntegerField(allow_null=True)
+    status             = serializers.CharField(allow_null=True)
+    note               = serializers.CharField(allow_null=True)
+
+
+class MarkAttendanceRowSerializer(serializers.Serializer):
+    """ one row in bulkmark payloadd"""
+    academic_record_id = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=['present','absent','late'])
+    note = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class BulkMarkAttendanceSerializer(serializers.Serializer):
+    """
+    Payload sent when teacher submits attendance for the day.
+    Contains the date and a list of rows — one per student.
+    """
+
+    date = serializers.DateField()
+    records = serializers.ListField(
+        child = MarkAttendanceRowSerializer(),
+        min_length = 1
+    )
+
+class AttendanceSessionSerializer(serializers.ModelSerializer):
+
+    marked_by_name = serializers.CharField(source='marked_by.fullname',read_only=True)
+
+    class Meta:
+        model  = AttendanceSession
+        fields = ['id', 'date', 'is_complete', 'marked_by_name', 'created_at', 'updated_at']
+
+
+
+class MonthlyAttendanceSummarySerializer(serializers.Serializer):
+    """Per-student monthly summary."""
+    academic_record_id = serializers.IntegerField()
+    fullname           = serializers.CharField()
+    admission_number   = serializers.CharField()
+    roll_number        = serializers.CharField(allow_null=True)
+    profile_picture    = serializers.CharField(allow_null=True)
+    total_days         = serializers.IntegerField()
+    present            = serializers.IntegerField()
+    absent             = serializers.IntegerField()
+    late               = serializers.IntegerField()
+    attendance_percent = serializers.FloatField()

@@ -57,12 +57,12 @@ function TeacherSidebar() {
     {
       title: "Attendance",
       icon: <Calendar size={18} />,
-      path: "/teacher/attendance",
+      path: "/attendance/markattendance/",
     },
     {
       title: "Assignments",
       icon: <ClipboardList size={18} />,
-      path: "/teacher/assignments",
+      path: "/attendance/attendance-report/",
     },
     {
       title: "Exams & Marks",

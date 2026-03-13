@@ -432,9 +432,15 @@ class StudentListView(APIView):
 class StudentDetailView(APIView):
 
     authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsSchool]
+    permission_classes = [IsSchool | IsParent]
 
-    def get(self, request, pk):
+    def get(self, request, pk):  # ← change student_id to pk
+        student = get_object_or_404(StudentProfile, pk=pk)
+
+        if request.user.user_type == 'parent':
+            parent = get_object_or_404(ParentProfile, user=request.user)
+            if not parent.students.filter(id=pk).exists():
+                return Response({'error': 'Access denied.'}, status=403)
 
         school = request.user.school
 
@@ -780,6 +786,7 @@ class StudentProfileView(APIView):
     def get(self, request):
         student = request.user.student_profile
         return Response({
+            "id": student.id,
             "fullname":         request.user.fullname,
             "email":            request.user.email,
             "phone":            request.user.phone,

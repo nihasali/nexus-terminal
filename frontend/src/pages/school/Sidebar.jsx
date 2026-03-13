@@ -72,7 +72,7 @@ function Sidebar() {
       path: "/complaints",
     },
     {
-      title: "Finance",
+      title: "Subjects",
       icon: <DollarSign size={18} />,
       path: "/school-subjects",
     },
@@ -82,9 +82,9 @@ function Sidebar() {
       path: "/leave-request",
     },
     {
-      title: "Settings",
+      title: "Attendance",
       icon: <Settings size={18} />,
-      path: "/settings",
+      path: "/school-StudentAttendanceReport",
     },
   ];
 

@@ -2,8 +2,7 @@ from django.apps import AppConfig
 
 
 class ClassConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
     name = 'Class'
 
-    # def ready(self):
-    #     import Class.signals
+    def ready(self):
+        import Class.signals

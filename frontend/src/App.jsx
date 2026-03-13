@@ -40,6 +40,9 @@ import ClassList from './pages/school/ClassList';
 import ClassDetail from './pages/school/ClassDetail';
 import CreateClass from './pages/school/CreateClass';
 import SubjectList from './pages/school/SubjectList';
+import MarkAttendance from './pages/teacher/MarkAttendance';
+import AttendanceReport from './pages/teacher/AttendanceReport';
+import StudentAttendanceReport from './pages/school/StudentAttendanceReport'
 
 
 function App() {
@@ -93,6 +96,14 @@ function App() {
         <Route path="/school-classes/create"   element={<SchoolRoute><CreateClass /></SchoolRoute>} />
         <Route path="/school-classes/:id"      element={<SchoolRoute><ClassDetail /></SchoolRoute>} />
         <Route path="/school-subjects" element={<SchoolRoute> <SubjectList /> </SchoolRoute>} />
+        <Route path="/school-StudentAttendanceReport" element={<SchoolRoute> <StudentAttendanceReport /> </SchoolRoute>} />
+
+
+
+        {/* ----------------------------------------------teacher & school------------------------------------------------------------------------- */}
+
+        <Route path='/attendance/markattendance/' element={<ProtectedRoute><MarkAttendance /></ProtectedRoute>}></Route>
+        <Route path='/attendance/attendance-report/' element={<ProtectedRoute><AttendanceReport /></ProtectedRoute>}></Route>
 
 
 
@@ -104,6 +115,7 @@ function App() {
         <Route path="/teacher/complete-profile" element={<TeacherProfileRoute> <TeacherProfileComplete /> </TeacherProfileRoute>}/>
         <Route path="/teacher/profile" element={ <TeacherRoute> <TeacherProfile /> </TeacherRoute>}/>
         <Route path="/teacher/edit-profile" element={ <TeacherRoute> <TeacherEditProfile /></TeacherRoute>}/>
+
 
 
         {/* --------------------------------------------------student private root-------------------------------------------------------------------- */}
