@@ -3,7 +3,7 @@ from Users.models import User
 from Profile.models import TeacherProfile,StudentProfile,StudentDocument,ParentProfile
 from Class.models import ClassRoom
 from django.db.models import Count, Q
-from .models import Subject,TeachingAssignment
+from .models import Subject,TeachingAssignment,PeriodTiming,Period
 
 class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
@@ -112,4 +112,46 @@ class CreateTeachingAssignmentSerializer(serializers.Serializer):
         data['subject'] = subject
 
         return data
+
+
+
+class PeriodTimingSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PeriodTiming
+        fields = ['id','period_number','label','start_time','end_time']
+
+class PeriodSlotSerializer(serializers.ModelSerializer):
+
+    """
+    A single timetable slot — used inside the grid response.
+    """
+
+    subject_name = serializers.CharField(source='assignment.subject.name')
+    subject_id = serializers.IntegerField(source='assignment.subject.id')
+    teacher_name = serializers.CharField(source='assignment.teacher.user.fullname')
+    teacher_id = serializers.IntegerField(source='assignment.teacher.id')
+    assignment_id = serializers.IntegerField(source='assignment.id')
+
+    class Meta:
+        model = Period
+        fields = [
+            'id', 'day', 'period_number',
+            'subject_name', 'subject_id',
+            'teacher_name', 'teacher_id',
+            'assignment_id',
+        ]
+
+
+class TimetableGridSerializer(serializers.Serializer):
+
+    """
+    Full timetable grid for a class.
+    Shape: { timings: [...], days: { Monday: { 1: slot|null, 2: slot|null ... } } }
+    """
+
+    classroom = serializers.DictField()
+    timings = PeriodTimingSerializer(many=True)
+    days = serializers.DictField()
+
 

@@ -3,11 +3,12 @@ from Users.models import User,School
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from Class.models import ClassRoom
-from .models import Subject,TeachingAssignment
+from .models import Subject,TeachingAssignment,Period,PeriodTiming
 
 from .serializers import (
     SubjectSerializer,CreateSubjectSerializer,AssignmentTeacherSerializer,AssignmentClassroomSerializer,
     TeachingAssignmentSerializer,CreateTeachingAssignmentSerializer,
+    PeriodTimingSerializer,PeriodSlotSerializer,TimetableGridSerializer
 )
 
 from Profile.models import TeacherProfile,PasswordSetupToken,StudentProfile,StudentDocument,ParentProfile
@@ -163,7 +164,6 @@ class TeachingAssignmentDetailView(APIView):
 
 class ClassTeachingAssignmentsView(APIView):
     """
-    GET /school-classes/<class_id>/assignments/
     All teaching assignments for a specific class.
     Used in ClassDetail to show which teacher teaches which subject.
     Accessible by: school, teachers of that class.
@@ -191,7 +191,6 @@ class ClassTeachingAssignmentsView(APIView):
 
 class TeacherAssignmentsView(APIView):
     """
-    GET /Subject_teacher/teachers/<teacher_id>/assignments/
     All classes a teacher is assigned to — current and past.
     Used in teacher dashboard and teacher profile.
     Optional filter: ?year=2025-26
@@ -221,8 +220,8 @@ class TeacherAssignmentsView(APIView):
 
 
 class MyAssignmentsView(APIView):
+
     """
-    GET /Profile/my-assignments/
     For the logged-in teacher — returns their own teaching assignments.
     Used by teacher dashboard to show "My Classes" and "My Subjects".
     """
@@ -263,3 +262,116 @@ class MyAssignmentsView(APIView):
             })
 
         return Response(list(grouped.values()))
+
+
+
+ORDERED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+def build_timetable_grid(classroom,timings,periods):
+
+    """
+    Builds the grid dict:
+    {
+        "Monday":    { 1: {...slot}, 2: null, 3: {...slot} ... },
+        "Tuesday":   { ... },
+        ...
+    }
+    """
+
+    slot_map={}
+    for p in periods:
+        slot_map[(p.day,p.period_number)]=p
+
+    grid={}
+
+    for day in ORDERED_DAYS:
+        grid[day]={}
+        for timing in timings:
+            slot = slot_map.get((day,timing.period_number))
+            if slot:
+                grid[day][timing.period_number]={
+                    'period_id': slot.id,
+                    'subject_id': slot.assignment.subject.id,
+                    'subject_name': slot.assignment.subject.name,
+                    'subject_code': slot.assignment.subject.code,
+                    'teacher_id': slot.assignment.teacher.id,
+                    'teacher_name': slot.assignment.teacher.user.fullname,
+                    'assignment_id': slot.assignment.id,
+                }
+            else:
+                grid[day][timing.period_number]
+
+
+    return grid
+
+
+class PeriodTimingView(APIView):
+
+    authentication_classes=[CookieJWTAuthentication]
+    permission_classes = [IsSchool]
+
+    def get(self,request):
+        timings = PeriodTiming.objects.filter(school=request.user.school)
+        return Response(PeriodTimingSerializer(timings,many=True).data)
+
+    def post(self,request):
+
+        data = request.data.copy()
+
+        existing = PeriodTiming.objects.filter(
+            school=request.user.school,
+            period_number=data.period_number
+        ).first()
+
+        if existing:
+            serializer= PeriodTimingSerializer(existing,data=data,partial=True)
+        else:
+            serializer = PeriodTimingSerializer(data=data)
+
+        if serializer.is_valid():
+            serializer.save(school=request.user.school)
+            return Response(serializer.data,status=201)
+
+        return Response(serializer.errors,status=400)
+
+    def put(self,request):
+
+        timing_data = request.data
+
+        if not isinstance(timing_data,list):
+            return Response({'error': 'Expected a list of timing objects'},status=400)
+
+        created = []
+        for item in timing_data:
+            obj,_ = PeriodTiming.objects.filter(
+                school = request.user.school,
+                period_number=item.get('period_number'),
+                default={
+                    'start_time': item.get('start_time'),
+                    'end_time':   item.get('end_time'),
+                    'label':      item.get('label', ''),
+                }
+            )
+
+            created.append(obj)
+
+        
+        return Response(PeriodTimingSerializer(created, many=True).data)
+
+    
+class ClassTimetableView(APIView):
+    """
+    GET  /timetable/classes/<class_id>/   → full timetable grid for a class
+    POST /timetable/classes/<class_id>/   → assign a subject to a slot
+    DELETE /timetable/classes/<class_id>/ → remove a slot
+    """
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes     = [IsSchool | IsTeacher | IsStudent | IsParent]
+
+    def get(self,request,class_id):
+        
+        classroom = get_object_or_404(
+            ClassRoom, pk=class_id, school=request.user.school
+        )
+        
+        

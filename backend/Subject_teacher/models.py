@@ -65,3 +65,61 @@ class TeachingAssignment(models.Model):
         )
 
 
+class PeriodTiming(models.Model):
+
+    """
+    School-wide fixed period timings.
+    Period 1 = 08:00–08:45 for ALL classes.
+    School admin sets these once — they apply everywhere.
+    """
+
+    school = models.ForeignKey(School,on_delete=models.CASCADE, related_name='period_timings')
+
+    period_number = models.IntegerField()
+    label = models.CharField(max_length=30, blank=True, null=True)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    class Meta:
+        unique_together = ('school', 'period_number')
+        ordering = ['period_number']
+
+
+    def __str__(self):
+        return f"Period {self.period_number} ({self.start_time}–{self.end_time})"
+
+
+
+class Period(models.Model):
+
+    """
+    One slot in the weekly timetable grid.
+    Ties a TeachingAssignment to a day + period_number.
+    unique_together ensures one subject per slot per class.
+    """
+
+    DAYS = [
+        ('Monday',    'Monday'),
+        ('Tuesday',   'Tuesday'),
+        ('Wednesday', 'Wednesday'),
+        ('Thursday',  'Thursday'),
+        ('Friday',    'Friday'),
+        ('Saturday',  'Saturday'),
+    ]
+
+    assignment = models.ForeignKey(TeachingAssignment,on_delete=models.CASCADE,related_name='periods')
+
+    day = models.CharField(max_length=10,choices=DAYS)
+    period_number = models.IntegerField()
+
+    class Meta:
+
+        ordering = ['day','period_number']
+
+    def __str__(self):
+        return (
+            f"{self.assignment.classroom} | {self.day} P{self.period_number} | "
+            f"{self.assignment.subject.name}"
+        )
+
+

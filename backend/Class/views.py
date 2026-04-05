@@ -871,8 +871,6 @@ class StudentAttendanceView(APIView):
                 return Response({'error': 'Access denied.'}, status=403)
 
         elif request.user.user_type == 'teacher':
-            # Teacher can view students in their assigned classes only
-            from Class.models import TeacherProfile
             try:
                 teacher = TeacherProfile.objects.get(user=request.user)
                 assigned_class_ids = teacher.teaching_assignments.filter(
